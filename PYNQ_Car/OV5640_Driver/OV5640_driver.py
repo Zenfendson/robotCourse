@@ -1,6 +1,6 @@
 from pynq import DefaultHierarchy
-from dma import AxiVDMA
-from ov5640_config import *
+from PYNQ_Car.dma.dma import AxiVDMA
+from PYNQ_Car.OV5640_Driver.ov5640_config import *
 from pynq.lib.video.common import VideoMode
 
 class OV5640_Driver(DefaultHierarchy):
