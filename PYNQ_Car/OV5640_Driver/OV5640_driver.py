@@ -2,6 +2,8 @@ from pynq import DefaultHierarchy
 from PYNQ_Car.dma.dma import AxiVDMA
 from PYNQ_Car.OV5640_Driver.ov5640_config import *
 from pynq.lib.video.common import VideoMode
+from pynq import PL
+from pynq import GPIO
 
 class OV5640_Driver(DefaultHierarchy):
     def __init__(self, description, vdma=None):
@@ -14,6 +16,11 @@ class OV5640_Driver(DefaultHierarchy):
         self._switch_back = self.axis_interconnect_back.xbar
         
         
+        self.gpio_dict = PL.gpio_dict
+        if('camera_reset' not in self.gpio_dict.keys()):
+            raise ValueError("No reset pin connected or wrong pin name!")
+        self.rst_pin = GPIO(GPIO.get_gpio_pin(self.gpio_dict['camera_reset']['index']), "out")
+        
         
     @staticmethod
     def checkhierarchy(description):
@@ -23,6 +30,7 @@ class OV5640_Driver(DefaultHierarchy):
             'axi_sccb' in description['ip'])
     
     def init(self):
+        self.reset()
         address = 0x3c
         length = 3
         for config in ov5640_config:
@@ -38,6 +46,11 @@ class OV5640_Driver(DefaultHierarchy):
         self.readchannel.mode = VideoMode(1280,720,32)
         self.switch_stream(0)
         self.readchannel.start()
+        
+    def reset(self):
+        for i in range(20):
+            self.rst_pin.write(1)
+        self.rst_pin.write(0)
         
     def set_rgba(self):
         self.stop()
