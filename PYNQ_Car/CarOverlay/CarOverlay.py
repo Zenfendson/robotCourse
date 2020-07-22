@@ -1,7 +1,7 @@
 import pynq.lib
-import OV5640_driver
-import video_proc
-from mb_driver import Car_Arduino
+from PYNQ_Car.OV5640_Driver import OV5640_driver
+from PYNQ_Car.Video_proc import video_proc
+from PYNQ_Car.Car_Arduino.mb_driver import Car_Arduino
 import pynq
 
 class CarOverlay(pynq.Overlay):
