@@ -14,7 +14,7 @@ if os.environ['BOARD'] != 'Pynq-Z2' and os.environ['BOARD'] != 'Pynq-Z1':
     exit(1)
 	
 def copy_notebooks():
-    src_nb_dir = os.path.join(f'', 'notebooks')
+    src_nb_dir = os.path.join(f'', 'notebook')
     dst_nb_dir = os.path.join(os.environ['PYNQ_JUPYTER_NOTEBOOKS'], 'PYNQ_Car')
     if os.path.exists(dst_nb_dir):
         shutil.rmtree(dst_nb_dir)
