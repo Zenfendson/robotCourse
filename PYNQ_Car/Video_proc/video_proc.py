@@ -1,6 +1,4 @@
 from pynq import DefaultHierarchy
-from dma import AxiVDMA
-from pynq.lib.video.common import VideoMode
 
 class video_proc_wrapper(DefaultHierarchy):
     def __init__(self, description, vdma=None):
