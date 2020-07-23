@@ -5,6 +5,7 @@ import sys
 import subprocess
 from distutils.dir_util import copy_tree
 hw_data_files = []
+sw_data_files = []
 if os.geteuid() != 0:
     print("This program must be run as root. Aborting.")
     sys.exit(1)
@@ -29,8 +30,8 @@ def copy_overlays():
 def copy_lib():
     src_lib_dir = os.path.join('PYNQ_Car/', '')
     dst_lib_dir = os.path.join(f'/usr/local/lib/python3.6/dist-packages/PYNQ_Car/Overlay', '')
-    copy_tree(src_ol_dir, dst_ol_dir)
-    hw_data_files.extend([os.path.join("..", dst_ol_dir, f) for f in os.listdir(dst_ol_dir)])
+    copy_tree(src_lib_dir, dst_lib_dir)
+    sw_data_files.extend([os.path.join("..", dst_lib_dir, f) for f in os.listdir(dst_lib_dir)])
 
 
 copy_lib()
@@ -39,14 +40,13 @@ copy_overlays()
 setup(
         name = "PYNQ_Car",
         version = 1.0,
-        url = 'https://github.com/Siudya/ORB_FPGA',
         license = 'BSD 3-Clause License',
         author = "Liang Sen",
 
         include_package_data = True,
         packages = find_packages(),
         package_data = {
-        '' : hw_data_files,
+        '' : hw_data_files+sw_data_files,
         },
         description = "ORB Feature Extractor on PYNQ",
     install_requires=[
