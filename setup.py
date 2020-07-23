@@ -50,7 +50,6 @@ setup(
         package_data = {
         '' : hw_data_files+sw_data_files,
         },
-        description = "ORB Feature Extractor on PYNQ",
     install_requires=[
         'pynq>=2.4','numpy','matplotlib'
     ],
