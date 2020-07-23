@@ -1,7 +1,7 @@
 import math
 from pynq.lib.arduino import Arduino
 
-ARDUINO_CAR_PROGRAM = "/usr/local/lib/python3.6/dist-packages/PYNQ_Car/car_arduino.bin"
+ARDUINO_CAR_PROGRAM = "/usr/local/lib/python3.6/dist-packages/PYNQ_Car/Overlay/car_arduino.bin"
 RESET = 1
 GET_ACCL_DATA = 3
 GET_GYRO_DATA = 5
