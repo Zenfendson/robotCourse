@@ -24,8 +24,6 @@ def copy_notebooks():
 def copy_overlays():
     src_ol_dir = os.path.join('hw/', '')
     dst_ol_dir = os.path.join(f'/usr/local/lib/python3.6/dist-packages/PYNQ_Car/Overlay', '')
-    if os.path.exists(dst_ol_dir):
-        shutil.rmtree(dst_ol_dir)
     copy_tree(src_ol_dir, dst_ol_dir)
     hw_data_files.extend([os.path.join("..", dst_ol_dir, f) for f in os.listdir(dst_ol_dir)])
 
