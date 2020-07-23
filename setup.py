@@ -29,7 +29,7 @@ def copy_overlays():
 
 def copy_lib():
     src_lib_dir = os.path.join('PYNQ_Car/', '')
-    dst_lib_dir = os.path.join(f'/usr/local/lib/python3.6/dist-packages/PYNQ_Car/Overlay', '')
+    dst_lib_dir = os.path.join(f'/usr/local/lib/python3.6/dist-packages/PYNQ_Car', '')
     if os.path.exists(dst_lib_dir):
         shutil.rmtree(dst_lib_dir)
     copy_tree(src_lib_dir, dst_lib_dir)
