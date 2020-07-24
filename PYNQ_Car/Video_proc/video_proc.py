@@ -58,8 +58,9 @@ class video_proc_wrapper(DefaultHierarchy):
         self.reset()
         self.start()
         self.setBypass()
-        self.canny_core.write(0x10, 80)
+        self.canny_core.write(0x10, 20)
         self.canny_core.write(0x18, 80)
+        self.canny_core.write(0x00, 81)
         
         
     def start(self):
@@ -113,8 +114,10 @@ class video_proc_wrapper(DefaultHierarchy):
         self.switch_stream(3)     
     
     def setCanny(self,low_threshold,high_threshold):
+        self.canny_core.write(0x00, 0X00)
         self.canny_core.write(0x10, int(low_threshold))
         self.canny_core.write(0x18, int(high_threshold))
+        self.canny_core.write(0x00, 0X81)
         self.switch_stream(1)     
     
     def setBypass(self):
