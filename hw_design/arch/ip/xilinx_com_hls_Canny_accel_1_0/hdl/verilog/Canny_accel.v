@@ -7,7 +7,7 @@
 
 `timescale 1 ns / 1 ps 
 
-(* CORE_GENERATION_INFO="Canny_accel,hls_ip_2018_3,{HLS_INPUT_TYPE=cxx,HLS_INPUT_FLOAT=0,HLS_INPUT_FIXED=0,HLS_INPUT_PART=xc7z020clg400-1,HLS_INPUT_CLOCK=5.000000,HLS_INPUT_ARCH=dataflow,HLS_SYN_CLOCK=4.375000,HLS_SYN_LAT=-1,HLS_SYN_TPT=-1,HLS_SYN_MEM=14,HLS_SYN_DSP=15,HLS_SYN_FF=4013,HLS_SYN_LUT=5949,HLS_VERSION=2018_3}" *)
+(* CORE_GENERATION_INFO="Canny_accel,hls_ip_2018_3,{HLS_INPUT_TYPE=cxx,HLS_INPUT_FLOAT=0,HLS_INPUT_FIXED=0,HLS_INPUT_PART=xc7z020clg400-1,HLS_INPUT_CLOCK=5.000000,HLS_INPUT_ARCH=dataflow,HLS_SYN_CLOCK=4.375000,HLS_SYN_LAT=939231,HLS_SYN_TPT=939231,HLS_SYN_MEM=18,HLS_SYN_DSP=1,HLS_SYN_FF=3155,HLS_SYN_LUT=5835,HLS_VERSION=2018_3}" *)
 
 module Canny_accel (
         s_axi_AXILiteS_AWVALID,
@@ -29,24 +29,25 @@ module Canny_accel (
         s_axi_AXILiteS_BRESP,
         ap_clk,
         ap_rst_n,
-        in_stream_TDATA,
-        in_stream_TKEEP,
-        in_stream_TSTRB,
-        in_stream_TUSER,
-        in_stream_TLAST,
-        in_stream_TID,
-        in_stream_TDEST,
-        out_stream_TDATA,
-        out_stream_TKEEP,
-        out_stream_TSTRB,
-        out_stream_TUSER,
-        out_stream_TLAST,
-        out_stream_TID,
-        out_stream_TDEST,
-        in_stream_TVALID,
-        in_stream_TREADY,
-        out_stream_TVALID,
-        out_stream_TREADY
+        interrupt,
+        in_strm_TDATA,
+        in_strm_TKEEP,
+        in_strm_TSTRB,
+        in_strm_TUSER,
+        in_strm_TLAST,
+        in_strm_TID,
+        in_strm_TDEST,
+        out_strm_TDATA,
+        out_strm_TKEEP,
+        out_strm_TSTRB,
+        out_strm_TUSER,
+        out_strm_TLAST,
+        out_strm_TID,
+        out_strm_TDEST,
+        in_strm_TVALID,
+        in_strm_TREADY,
+        out_strm_TVALID,
+        out_strm_TREADY
 );
 
 parameter    C_S_AXI_AXILITES_DATA_WIDTH = 32;
@@ -76,272 +77,98 @@ input   s_axi_AXILiteS_BREADY;
 output  [1:0] s_axi_AXILiteS_BRESP;
 input   ap_clk;
 input   ap_rst_n;
-input  [23:0] in_stream_TDATA;
-input  [2:0] in_stream_TKEEP;
-input  [2:0] in_stream_TSTRB;
-input  [0:0] in_stream_TUSER;
-input  [0:0] in_stream_TLAST;
-input  [0:0] in_stream_TID;
-input  [0:0] in_stream_TDEST;
-output  [23:0] out_stream_TDATA;
-output  [2:0] out_stream_TKEEP;
-output  [2:0] out_stream_TSTRB;
-output  [0:0] out_stream_TUSER;
-output  [0:0] out_stream_TLAST;
-output  [0:0] out_stream_TID;
-output  [0:0] out_stream_TDEST;
-input   in_stream_TVALID;
-output   in_stream_TREADY;
-output   out_stream_TVALID;
-input   out_stream_TREADY;
+output   interrupt;
+input  [7:0] in_strm_TDATA;
+input  [0:0] in_strm_TKEEP;
+input  [0:0] in_strm_TSTRB;
+input  [0:0] in_strm_TUSER;
+input  [0:0] in_strm_TLAST;
+input  [0:0] in_strm_TID;
+input  [0:0] in_strm_TDEST;
+output  [7:0] out_strm_TDATA;
+output  [0:0] out_strm_TKEEP;
+output  [0:0] out_strm_TSTRB;
+output  [0:0] out_strm_TUSER;
+output  [0:0] out_strm_TLAST;
+output  [0:0] out_strm_TID;
+output  [0:0] out_strm_TDEST;
+input   in_strm_TVALID;
+output   in_strm_TREADY;
+output   out_strm_TVALID;
+input   out_strm_TREADY;
 
  reg    ap_rst_n_inv;
-wire   [31:0] low_threshold;
-wire   [31:0] high_threshold;
-wire    Block_proc268_U0_ap_start;
-wire    Block_proc268_U0_ap_done;
-wire    Block_proc268_U0_ap_continue;
-wire    Block_proc268_U0_ap_idle;
-wire    Block_proc268_U0_ap_ready;
-wire    Block_proc268_U0_start_out;
-wire    Block_proc268_U0_start_write;
-wire   [10:0] Block_proc268_U0_img_in_rows_V_out_din;
-wire    Block_proc268_U0_img_in_rows_V_out_write;
-wire   [11:0] Block_proc268_U0_img_in_cols_V_out_din;
-wire    Block_proc268_U0_img_in_cols_V_out_write;
-wire   [31:0] Block_proc268_U0_low_threshold_out_din;
-wire    Block_proc268_U0_low_threshold_out_write;
-wire   [31:0] Block_proc268_U0_high_threshold_out_din;
-wire    Block_proc268_U0_high_threshold_out_write;
-wire    plainStream2hlsMat_r_U0_ap_start;
-wire    plainStream2hlsMat_r_U0_ap_done;
-wire    plainStream2hlsMat_r_U0_ap_continue;
-wire    plainStream2hlsMat_r_U0_ap_idle;
-wire    plainStream2hlsMat_r_U0_ap_ready;
-wire    plainStream2hlsMat_r_U0_start_out;
-wire    plainStream2hlsMat_r_U0_start_write;
-wire    plainStream2hlsMat_r_U0_in_stream_TREADY;
-wire    plainStream2hlsMat_r_U0_mat_out_rows_V_read;
-wire    plainStream2hlsMat_r_U0_mat_out_cols_V_read;
-wire   [7:0] plainStream2hlsMat_r_U0_mat_out_data_stream_0_V_din;
-wire    plainStream2hlsMat_r_U0_mat_out_data_stream_0_V_write;
-wire   [7:0] plainStream2hlsMat_r_U0_mat_out_data_stream_1_V_din;
-wire    plainStream2hlsMat_r_U0_mat_out_data_stream_1_V_write;
-wire   [7:0] plainStream2hlsMat_r_U0_mat_out_data_stream_2_V_din;
-wire    plainStream2hlsMat_r_U0_mat_out_data_stream_2_V_write;
-wire   [10:0] plainStream2hlsMat_r_U0_mat_out_rows_V_out_din;
-wire    plainStream2hlsMat_r_U0_mat_out_rows_V_out_write;
-wire   [11:0] plainStream2hlsMat_r_U0_mat_out_cols_V_out_din;
-wire    plainStream2hlsMat_r_U0_mat_out_cols_V_out_write;
-wire    CvtColor_U0_ap_start;
-wire    CvtColor_U0_ap_done;
-wire    CvtColor_U0_ap_continue;
-wire    CvtColor_U0_ap_idle;
-wire    CvtColor_U0_ap_ready;
-wire    CvtColor_U0_start_out;
-wire    CvtColor_U0_start_write;
-wire    CvtColor_U0_p_src_rows_V_read;
-wire    CvtColor_U0_p_src_cols_V_read;
-wire    CvtColor_U0_p_src_data_stream_0_V_read;
-wire    CvtColor_U0_p_src_data_stream_1_V_read;
-wire    CvtColor_U0_p_src_data_stream_2_V_read;
-wire   [7:0] CvtColor_U0_p_dst_data_stream_V_din;
-wire    CvtColor_U0_p_dst_data_stream_V_write;
-wire    Duplicate_U0_ap_start;
-wire    Duplicate_U0_start_full_n;
-wire    Duplicate_U0_ap_done;
-wire    Duplicate_U0_ap_continue;
-wire    Duplicate_U0_ap_idle;
-wire    Duplicate_U0_ap_ready;
-wire    Duplicate_U0_start_out;
-wire    Duplicate_U0_start_write;
-wire    Duplicate_U0_src_data_stream_V_read;
-wire   [7:0] Duplicate_U0_dst1_data_stream_V_din;
-wire    Duplicate_U0_dst1_data_stream_V_write;
-wire   [7:0] Duplicate_U0_dst2_data_stream_V_din;
-wire    Duplicate_U0_dst2_data_stream_V_write;
-wire    Sobel_U0_ap_start;
-wire    Sobel_U0_ap_done;
-wire    Sobel_U0_ap_continue;
-wire    Sobel_U0_ap_idle;
-wire    Sobel_U0_ap_ready;
-wire    Sobel_U0_start_out;
-wire    Sobel_U0_start_write;
-wire    Sobel_U0_p_src_data_stream_V_read;
-wire   [15:0] Sobel_U0_p_dst_data_stream_V_din;
-wire    Sobel_U0_p_dst_data_stream_V_write;
-wire    Sobel_1_U0_ap_start;
-wire    Sobel_1_U0_ap_done;
-wire    Sobel_1_U0_ap_continue;
-wire    Sobel_1_U0_ap_idle;
-wire    Sobel_1_U0_ap_ready;
-wire    Sobel_1_U0_p_src_data_stream_V_read;
-wire   [15:0] Sobel_1_U0_p_dst_data_stream_V_din;
-wire    Sobel_1_U0_p_dst_data_stream_V_write;
-wire    gradient_decompositi_U0_ap_start;
-wire    gradient_decompositi_U0_ap_done;
-wire    gradient_decompositi_U0_ap_continue;
-wire    gradient_decompositi_U0_ap_idle;
-wire    gradient_decompositi_U0_ap_ready;
-wire    gradient_decompositi_U0_start_out;
-wire    gradient_decompositi_U0_start_write;
-wire    gradient_decompositi_U0_gx_data_stream_V_read;
-wire    gradient_decompositi_U0_gy_data_stream_V_read;
-wire   [15:0] gradient_decompositi_U0_gd_data_stream_V_din;
-wire    gradient_decompositi_U0_gd_data_stream_V_write;
-wire    nonmax_suppression_U0_ap_start;
-wire    nonmax_suppression_U0_ap_done;
-wire    nonmax_suppression_U0_ap_continue;
-wire    nonmax_suppression_U0_ap_idle;
-wire    nonmax_suppression_U0_ap_ready;
-wire    nonmax_suppression_U0_gd_data_stream_V_read;
-wire   [15:0] nonmax_suppression_U0_dst_data_stream_V_din;
-wire    nonmax_suppression_U0_dst_data_stream_V_write;
-wire    hysteresis_U0_ap_start;
-wire    hysteresis_U0_ap_done;
-wire    hysteresis_U0_ap_continue;
-wire    hysteresis_U0_ap_idle;
-wire    hysteresis_U0_ap_ready;
-wire    hysteresis_U0_start_out;
-wire    hysteresis_U0_start_write;
-wire    hysteresis_U0_src_data_stream_V_read;
-wire   [7:0] hysteresis_U0_dst_data_stream_V_din;
-wire    hysteresis_U0_dst_data_stream_V_write;
-wire    hysteresis_U0_threshold_low_read;
-wire    hysteresis_U0_threshold_high_read;
-wire    CvtColor_1_U0_ap_start;
-wire    CvtColor_1_U0_ap_done;
-wire    CvtColor_1_U0_ap_continue;
-wire    CvtColor_1_U0_ap_idle;
-wire    CvtColor_1_U0_ap_ready;
-wire    CvtColor_1_U0_start_out;
-wire    CvtColor_1_U0_start_write;
-wire    CvtColor_1_U0_p_src_data_stream_V_read;
-wire   [7:0] CvtColor_1_U0_p_dst_data_stream_0_V_din;
-wire    CvtColor_1_U0_p_dst_data_stream_0_V_write;
-wire   [7:0] CvtColor_1_U0_p_dst_data_stream_1_V_din;
-wire    CvtColor_1_U0_p_dst_data_stream_1_V_write;
-wire   [7:0] CvtColor_1_U0_p_dst_data_stream_2_V_din;
-wire    CvtColor_1_U0_p_dst_data_stream_2_V_write;
-wire    hlsMat2plainStream_r_U0_ap_start;
-wire    hlsMat2plainStream_r_U0_ap_done;
-wire    hlsMat2plainStream_r_U0_ap_continue;
-wire    hlsMat2plainStream_r_U0_ap_idle;
-wire    hlsMat2plainStream_r_U0_ap_ready;
-wire    hlsMat2plainStream_r_U0_mat_in_data_stream_0_V_read;
-wire    hlsMat2plainStream_r_U0_mat_in_data_stream_1_V_read;
-wire    hlsMat2plainStream_r_U0_mat_in_data_stream_2_V_read;
-wire   [23:0] hlsMat2plainStream_r_U0_out_stream_TDATA;
-wire    hlsMat2plainStream_r_U0_out_stream_TVALID;
-wire   [2:0] hlsMat2plainStream_r_U0_out_stream_TKEEP;
-wire   [2:0] hlsMat2plainStream_r_U0_out_stream_TSTRB;
-wire   [0:0] hlsMat2plainStream_r_U0_out_stream_TUSER;
-wire   [0:0] hlsMat2plainStream_r_U0_out_stream_TLAST;
-wire   [0:0] hlsMat2plainStream_r_U0_out_stream_TID;
-wire   [0:0] hlsMat2plainStream_r_U0_out_stream_TDEST;
+wire    ap_start;
+wire    ap_ready;
+wire    ap_done;
+wire    ap_idle;
+wire   [7:0] low_threshold;
+wire   [7:0] high_threshold;
+wire    pre_process211_U0_ap_start;
+wire    pre_process211_U0_ap_done;
+wire    pre_process211_U0_ap_continue;
+wire    pre_process211_U0_ap_idle;
+wire    pre_process211_U0_ap_ready;
+wire    pre_process211_U0_start_out;
+wire    pre_process211_U0_start_write;
+wire    pre_process211_U0_in_strm_TREADY;
+wire   [7:0] pre_process211_U0_out_strm_V_V_din;
+wire    pre_process211_U0_out_strm_V_V_write;
+wire   [7:0] pre_process211_U0_low_threshold_out_din;
+wire    pre_process211_U0_low_threshold_out_write;
+wire   [7:0] pre_process211_U0_high_threshold_out_din;
+wire    pre_process211_U0_high_threshold_out_write;
+wire    xFCannyEdgeDetector_U0_ap_start;
+wire    xFCannyEdgeDetector_U0_ap_done;
+wire    xFCannyEdgeDetector_U0_ap_continue;
+wire    xFCannyEdgeDetector_U0_ap_idle;
+wire    xFCannyEdgeDetector_U0_ap_ready;
+wire    xFCannyEdgeDetector_U0_start_out;
+wire    xFCannyEdgeDetector_U0_start_write;
+wire    xFCannyEdgeDetector_U0_p_src_mat_V_V_read;
+wire   [1:0] xFCannyEdgeDetector_U0_out_strm_V_V_din;
+wire    xFCannyEdgeDetector_U0_out_strm_V_V_write;
+wire    xFCannyEdgeDetector_U0_p_lowthreshold_read;
+wire    xFCannyEdgeDetector_U0_p_highthreshold_read;
+wire    post_process_U0_ap_start;
+wire    post_process_U0_ap_done;
+wire    post_process_U0_ap_continue;
+wire    post_process_U0_ap_idle;
+wire    post_process_U0_ap_ready;
+wire    post_process_U0_in_strm_V_V_read;
+wire   [7:0] post_process_U0_out_strm_TDATA;
+wire    post_process_U0_out_strm_TVALID;
+wire   [0:0] post_process_U0_out_strm_TKEEP;
+wire   [0:0] post_process_U0_out_strm_TSTRB;
+wire   [0:0] post_process_U0_out_strm_TUSER;
+wire   [0:0] post_process_U0_out_strm_TLAST;
+wire   [0:0] post_process_U0_out_strm_TID;
+wire   [0:0] post_process_U0_out_strm_TDEST;
 wire    ap_sync_continue;
-wire    img_in_rows_V_c_full_n;
-wire   [10:0] img_in_rows_V_c_dout;
-wire    img_in_rows_V_c_empty_n;
-wire    img_in_cols_V_c_full_n;
-wire   [11:0] img_in_cols_V_c_dout;
-wire    img_in_cols_V_c_empty_n;
+wire    strm_src_V_V_full_n;
+wire   [7:0] strm_src_V_V_dout;
+wire    strm_src_V_V_empty_n;
 wire    low_threshold_c_full_n;
-wire   [31:0] low_threshold_c_dout;
+wire   [7:0] low_threshold_c_dout;
 wire    low_threshold_c_empty_n;
 wire    high_threshold_c_full_n;
-wire   [31:0] high_threshold_c_dout;
+wire   [7:0] high_threshold_c_dout;
 wire    high_threshold_c_empty_n;
-wire    img_in_data_stream_0_full_n;
-wire   [7:0] img_in_data_stream_0_dout;
-wire    img_in_data_stream_0_empty_n;
-wire    img_in_data_stream_1_full_n;
-wire   [7:0] img_in_data_stream_1_dout;
-wire    img_in_data_stream_1_empty_n;
-wire    img_in_data_stream_2_full_n;
-wire   [7:0] img_in_data_stream_2_dout;
-wire    img_in_data_stream_2_empty_n;
-wire    img_in_rows_V_c22_full_n;
-wire   [10:0] img_in_rows_V_c22_dout;
-wire    img_in_rows_V_c22_empty_n;
-wire    img_in_cols_V_c23_full_n;
-wire   [11:0] img_in_cols_V_c23_dout;
-wire    img_in_cols_V_c23_empty_n;
-wire    img_gray_in_data_str_full_n;
-wire   [7:0] img_gray_in_data_str_dout;
-wire    img_gray_in_data_str_empty_n;
-wire    img_gray_src0_data_s_full_n;
-wire   [7:0] img_gray_src0_data_s_dout;
-wire    img_gray_src0_data_s_empty_n;
-wire    img_gray_src1_data_s_full_n;
-wire   [7:0] img_gray_src1_data_s_dout;
-wire    img_gray_src1_data_s_empty_n;
-wire    img_sobel0_data_stre_full_n;
-wire   [15:0] img_sobel0_data_stre_dout;
-wire    img_sobel0_data_stre_empty_n;
-wire    img_sobel1_data_stre_full_n;
-wire   [15:0] img_sobel1_data_stre_dout;
-wire    img_sobel1_data_stre_empty_n;
-wire    img_grad_data_stream_full_n;
-wire   [15:0] img_grad_data_stream_dout;
-wire    img_grad_data_stream_empty_n;
-wire    img_nms_data_stream_s_full_n;
-wire   [15:0] img_nms_data_stream_s_dout;
-wire    img_nms_data_stream_s_empty_n;
-wire    img_canny_data_strea_full_n;
-wire   [7:0] img_canny_data_strea_dout;
-wire    img_canny_data_strea_empty_n;
-wire    img_out_data_stream_s_full_n;
-wire   [7:0] img_out_data_stream_s_dout;
-wire    img_out_data_stream_s_empty_n;
-wire    img_out_data_stream_1_full_n;
-wire   [7:0] img_out_data_stream_1_dout;
-wire    img_out_data_stream_1_empty_n;
-wire    img_out_data_stream_2_full_n;
-wire   [7:0] img_out_data_stream_2_dout;
-wire    img_out_data_stream_2_empty_n;
-wire   [0:0] start_for_hysteresis_U0_din;
-wire    start_for_hysteresis_U0_full_n;
-wire   [0:0] start_for_hysteresis_U0_dout;
-wire    start_for_hysteresis_U0_empty_n;
-wire   [0:0] start_for_CvtColor_U0_din;
-wire    start_for_CvtColor_U0_full_n;
-wire   [0:0] start_for_CvtColor_U0_dout;
-wire    start_for_CvtColor_U0_empty_n;
-wire   [0:0] start_for_Duplicate_U0_din;
-wire    start_for_Duplicate_U0_full_n;
-wire   [0:0] start_for_Duplicate_U0_dout;
-wire    start_for_Duplicate_U0_empty_n;
-wire   [0:0] start_for_Sobel_U0_din;
-wire    start_for_Sobel_U0_full_n;
-wire   [0:0] start_for_Sobel_U0_dout;
-wire    start_for_Sobel_U0_empty_n;
-wire   [0:0] start_for_Sobel_1_U0_din;
-wire    start_for_Sobel_1_U0_full_n;
-wire   [0:0] start_for_Sobel_1_U0_dout;
-wire    start_for_Sobel_1_U0_empty_n;
-wire   [0:0] start_for_gradient_decompositi_U0_din;
-wire    start_for_gradient_decompositi_U0_full_n;
-wire   [0:0] start_for_gradient_decompositi_U0_dout;
-wire    start_for_gradient_decompositi_U0_empty_n;
-wire    Sobel_1_U0_start_full_n;
-wire    Sobel_1_U0_start_write;
-wire   [0:0] start_for_nonmax_suppression_U0_din;
-wire    start_for_nonmax_suppression_U0_full_n;
-wire   [0:0] start_for_nonmax_suppression_U0_dout;
-wire    start_for_nonmax_suppression_U0_empty_n;
-wire    nonmax_suppression_U0_start_full_n;
-wire    nonmax_suppression_U0_start_write;
-wire   [0:0] start_for_CvtColor_1_U0_din;
-wire    start_for_CvtColor_1_U0_full_n;
-wire   [0:0] start_for_CvtColor_1_U0_dout;
-wire    start_for_CvtColor_1_U0_empty_n;
-wire   [0:0] start_for_hlsMat2plainStream_r_U0_din;
-wire    start_for_hlsMat2plainStream_r_U0_full_n;
-wire   [0:0] start_for_hlsMat2plainStream_r_U0_dout;
-wire    start_for_hlsMat2plainStream_r_U0_empty_n;
-wire    hlsMat2plainStream_r_U0_start_full_n;
-wire    hlsMat2plainStream_r_U0_start_write;
+wire    strm_dst_V_V_full_n;
+wire   [1:0] strm_dst_V_V_dout;
+wire    strm_dst_V_V_empty_n;
+wire    ap_sync_done;
+wire    ap_sync_ready;
+wire   [0:0] start_for_xFCannyEdgeDetector_U0_din;
+wire    start_for_xFCannyEdgeDetector_U0_full_n;
+wire   [0:0] start_for_xFCannyEdgeDetector_U0_dout;
+wire    start_for_xFCannyEdgeDetector_U0_empty_n;
+wire   [0:0] start_for_post_process_U0_din;
+wire    start_for_post_process_U0_full_n;
+wire   [0:0] start_for_post_process_U0_dout;
+wire    start_for_post_process_U0_empty_n;
+wire    post_process_U0_start_full_n;
+wire    post_process_U0_start_write;
 
 Canny_accel_AXILiteS_s_axi #(
     .C_S_AXI_ADDR_WIDTH( C_S_AXI_AXILITES_ADDR_WIDTH ),
@@ -367,759 +194,225 @@ Canny_accel_AXILiteS_s_axi_U(
     .ACLK(ap_clk),
     .ARESET(ap_rst_n_inv),
     .ACLK_EN(1'b1),
+    .ap_start(ap_start),
+    .interrupt(interrupt),
+    .ap_ready(ap_ready),
+    .ap_done(ap_done),
+    .ap_idle(ap_idle),
     .low_threshold(low_threshold),
     .high_threshold(high_threshold)
 );
 
-Block_proc268 Block_proc268_U0(
+pre_process211 pre_process211_U0(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst_n_inv),
-    .ap_start(Block_proc268_U0_ap_start),
-    .start_full_n(start_for_hysteresis_U0_full_n),
-    .ap_done(Block_proc268_U0_ap_done),
-    .ap_continue(Block_proc268_U0_ap_continue),
-    .ap_idle(Block_proc268_U0_ap_idle),
-    .ap_ready(Block_proc268_U0_ap_ready),
-    .start_out(Block_proc268_U0_start_out),
-    .start_write(Block_proc268_U0_start_write),
+    .ap_start(pre_process211_U0_ap_start),
+    .start_full_n(start_for_xFCannyEdgeDetector_U0_full_n),
+    .ap_done(pre_process211_U0_ap_done),
+    .ap_continue(pre_process211_U0_ap_continue),
+    .ap_idle(pre_process211_U0_ap_idle),
+    .ap_ready(pre_process211_U0_ap_ready),
+    .start_out(pre_process211_U0_start_out),
+    .start_write(pre_process211_U0_start_write),
+    .in_strm_TDATA(in_strm_TDATA),
+    .in_strm_TVALID(in_strm_TVALID),
+    .in_strm_TREADY(pre_process211_U0_in_strm_TREADY),
+    .in_strm_TKEEP(in_strm_TKEEP),
+    .in_strm_TSTRB(in_strm_TSTRB),
+    .in_strm_TUSER(in_strm_TUSER),
+    .in_strm_TLAST(in_strm_TLAST),
+    .in_strm_TID(in_strm_TID),
+    .in_strm_TDEST(in_strm_TDEST),
+    .out_strm_V_V_din(pre_process211_U0_out_strm_V_V_din),
+    .out_strm_V_V_full_n(strm_src_V_V_full_n),
+    .out_strm_V_V_write(pre_process211_U0_out_strm_V_V_write),
     .low_threshold(low_threshold),
     .high_threshold(high_threshold),
-    .img_in_rows_V_out_din(Block_proc268_U0_img_in_rows_V_out_din),
-    .img_in_rows_V_out_full_n(img_in_rows_V_c_full_n),
-    .img_in_rows_V_out_write(Block_proc268_U0_img_in_rows_V_out_write),
-    .img_in_cols_V_out_din(Block_proc268_U0_img_in_cols_V_out_din),
-    .img_in_cols_V_out_full_n(img_in_cols_V_c_full_n),
-    .img_in_cols_V_out_write(Block_proc268_U0_img_in_cols_V_out_write),
-    .low_threshold_out_din(Block_proc268_U0_low_threshold_out_din),
+    .low_threshold_out_din(pre_process211_U0_low_threshold_out_din),
     .low_threshold_out_full_n(low_threshold_c_full_n),
-    .low_threshold_out_write(Block_proc268_U0_low_threshold_out_write),
-    .high_threshold_out_din(Block_proc268_U0_high_threshold_out_din),
+    .low_threshold_out_write(pre_process211_U0_low_threshold_out_write),
+    .high_threshold_out_din(pre_process211_U0_high_threshold_out_din),
     .high_threshold_out_full_n(high_threshold_c_full_n),
-    .high_threshold_out_write(Block_proc268_U0_high_threshold_out_write)
+    .high_threshold_out_write(pre_process211_U0_high_threshold_out_write)
 );
 
-plainStream2hlsMat_r plainStream2hlsMat_r_U0(
+xFCannyEdgeDetector xFCannyEdgeDetector_U0(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst_n_inv),
-    .ap_start(plainStream2hlsMat_r_U0_ap_start),
-    .start_full_n(start_for_CvtColor_U0_full_n),
-    .ap_done(plainStream2hlsMat_r_U0_ap_done),
-    .ap_continue(plainStream2hlsMat_r_U0_ap_continue),
-    .ap_idle(plainStream2hlsMat_r_U0_ap_idle),
-    .ap_ready(plainStream2hlsMat_r_U0_ap_ready),
-    .start_out(plainStream2hlsMat_r_U0_start_out),
-    .start_write(plainStream2hlsMat_r_U0_start_write),
-    .in_stream_TDATA(in_stream_TDATA),
-    .in_stream_TVALID(in_stream_TVALID),
-    .in_stream_TREADY(plainStream2hlsMat_r_U0_in_stream_TREADY),
-    .in_stream_TKEEP(in_stream_TKEEP),
-    .in_stream_TSTRB(in_stream_TSTRB),
-    .in_stream_TUSER(in_stream_TUSER),
-    .in_stream_TLAST(in_stream_TLAST),
-    .in_stream_TID(in_stream_TID),
-    .in_stream_TDEST(in_stream_TDEST),
-    .mat_out_rows_V_dout(img_in_rows_V_c_dout),
-    .mat_out_rows_V_empty_n(img_in_rows_V_c_empty_n),
-    .mat_out_rows_V_read(plainStream2hlsMat_r_U0_mat_out_rows_V_read),
-    .mat_out_cols_V_dout(img_in_cols_V_c_dout),
-    .mat_out_cols_V_empty_n(img_in_cols_V_c_empty_n),
-    .mat_out_cols_V_read(plainStream2hlsMat_r_U0_mat_out_cols_V_read),
-    .mat_out_data_stream_0_V_din(plainStream2hlsMat_r_U0_mat_out_data_stream_0_V_din),
-    .mat_out_data_stream_0_V_full_n(img_in_data_stream_0_full_n),
-    .mat_out_data_stream_0_V_write(plainStream2hlsMat_r_U0_mat_out_data_stream_0_V_write),
-    .mat_out_data_stream_1_V_din(plainStream2hlsMat_r_U0_mat_out_data_stream_1_V_din),
-    .mat_out_data_stream_1_V_full_n(img_in_data_stream_1_full_n),
-    .mat_out_data_stream_1_V_write(plainStream2hlsMat_r_U0_mat_out_data_stream_1_V_write),
-    .mat_out_data_stream_2_V_din(plainStream2hlsMat_r_U0_mat_out_data_stream_2_V_din),
-    .mat_out_data_stream_2_V_full_n(img_in_data_stream_2_full_n),
-    .mat_out_data_stream_2_V_write(plainStream2hlsMat_r_U0_mat_out_data_stream_2_V_write),
-    .mat_out_rows_V_out_din(plainStream2hlsMat_r_U0_mat_out_rows_V_out_din),
-    .mat_out_rows_V_out_full_n(img_in_rows_V_c22_full_n),
-    .mat_out_rows_V_out_write(plainStream2hlsMat_r_U0_mat_out_rows_V_out_write),
-    .mat_out_cols_V_out_din(plainStream2hlsMat_r_U0_mat_out_cols_V_out_din),
-    .mat_out_cols_V_out_full_n(img_in_cols_V_c23_full_n),
-    .mat_out_cols_V_out_write(plainStream2hlsMat_r_U0_mat_out_cols_V_out_write)
+    .ap_start(xFCannyEdgeDetector_U0_ap_start),
+    .start_full_n(start_for_post_process_U0_full_n),
+    .ap_done(xFCannyEdgeDetector_U0_ap_done),
+    .ap_continue(xFCannyEdgeDetector_U0_ap_continue),
+    .ap_idle(xFCannyEdgeDetector_U0_ap_idle),
+    .ap_ready(xFCannyEdgeDetector_U0_ap_ready),
+    .start_out(xFCannyEdgeDetector_U0_start_out),
+    .start_write(xFCannyEdgeDetector_U0_start_write),
+    .p_src_mat_V_V_dout(strm_src_V_V_dout),
+    .p_src_mat_V_V_empty_n(strm_src_V_V_empty_n),
+    .p_src_mat_V_V_read(xFCannyEdgeDetector_U0_p_src_mat_V_V_read),
+    .out_strm_V_V_din(xFCannyEdgeDetector_U0_out_strm_V_V_din),
+    .out_strm_V_V_full_n(strm_dst_V_V_full_n),
+    .out_strm_V_V_write(xFCannyEdgeDetector_U0_out_strm_V_V_write),
+    .p_lowthreshold_dout(low_threshold_c_dout),
+    .p_lowthreshold_empty_n(low_threshold_c_empty_n),
+    .p_lowthreshold_read(xFCannyEdgeDetector_U0_p_lowthreshold_read),
+    .p_highthreshold_dout(high_threshold_c_dout),
+    .p_highthreshold_empty_n(high_threshold_c_empty_n),
+    .p_highthreshold_read(xFCannyEdgeDetector_U0_p_highthreshold_read)
 );
 
-CvtColor CvtColor_U0(
+post_process post_process_U0(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst_n_inv),
-    .ap_start(CvtColor_U0_ap_start),
-    .start_full_n(start_for_Duplicate_U0_full_n),
-    .ap_done(CvtColor_U0_ap_done),
-    .ap_continue(CvtColor_U0_ap_continue),
-    .ap_idle(CvtColor_U0_ap_idle),
-    .ap_ready(CvtColor_U0_ap_ready),
-    .start_out(CvtColor_U0_start_out),
-    .start_write(CvtColor_U0_start_write),
-    .p_src_rows_V_dout(img_in_rows_V_c22_dout),
-    .p_src_rows_V_empty_n(img_in_rows_V_c22_empty_n),
-    .p_src_rows_V_read(CvtColor_U0_p_src_rows_V_read),
-    .p_src_cols_V_dout(img_in_cols_V_c23_dout),
-    .p_src_cols_V_empty_n(img_in_cols_V_c23_empty_n),
-    .p_src_cols_V_read(CvtColor_U0_p_src_cols_V_read),
-    .p_src_data_stream_0_V_dout(img_in_data_stream_0_dout),
-    .p_src_data_stream_0_V_empty_n(img_in_data_stream_0_empty_n),
-    .p_src_data_stream_0_V_read(CvtColor_U0_p_src_data_stream_0_V_read),
-    .p_src_data_stream_1_V_dout(img_in_data_stream_1_dout),
-    .p_src_data_stream_1_V_empty_n(img_in_data_stream_1_empty_n),
-    .p_src_data_stream_1_V_read(CvtColor_U0_p_src_data_stream_1_V_read),
-    .p_src_data_stream_2_V_dout(img_in_data_stream_2_dout),
-    .p_src_data_stream_2_V_empty_n(img_in_data_stream_2_empty_n),
-    .p_src_data_stream_2_V_read(CvtColor_U0_p_src_data_stream_2_V_read),
-    .p_dst_data_stream_V_din(CvtColor_U0_p_dst_data_stream_V_din),
-    .p_dst_data_stream_V_full_n(img_gray_in_data_str_full_n),
-    .p_dst_data_stream_V_write(CvtColor_U0_p_dst_data_stream_V_write)
+    .ap_start(post_process_U0_ap_start),
+    .ap_done(post_process_U0_ap_done),
+    .ap_continue(post_process_U0_ap_continue),
+    .ap_idle(post_process_U0_ap_idle),
+    .ap_ready(post_process_U0_ap_ready),
+    .in_strm_V_V_dout(strm_dst_V_V_dout),
+    .in_strm_V_V_empty_n(strm_dst_V_V_empty_n),
+    .in_strm_V_V_read(post_process_U0_in_strm_V_V_read),
+    .out_strm_TDATA(post_process_U0_out_strm_TDATA),
+    .out_strm_TVALID(post_process_U0_out_strm_TVALID),
+    .out_strm_TREADY(out_strm_TREADY),
+    .out_strm_TKEEP(post_process_U0_out_strm_TKEEP),
+    .out_strm_TSTRB(post_process_U0_out_strm_TSTRB),
+    .out_strm_TUSER(post_process_U0_out_strm_TUSER),
+    .out_strm_TLAST(post_process_U0_out_strm_TLAST),
+    .out_strm_TID(post_process_U0_out_strm_TID),
+    .out_strm_TDEST(post_process_U0_out_strm_TDEST)
 );
 
-Duplicate Duplicate_U0(
-    .ap_clk(ap_clk),
-    .ap_rst(ap_rst_n_inv),
-    .ap_start(Duplicate_U0_ap_start),
-    .start_full_n(Duplicate_U0_start_full_n),
-    .ap_done(Duplicate_U0_ap_done),
-    .ap_continue(Duplicate_U0_ap_continue),
-    .ap_idle(Duplicate_U0_ap_idle),
-    .ap_ready(Duplicate_U0_ap_ready),
-    .start_out(Duplicate_U0_start_out),
-    .start_write(Duplicate_U0_start_write),
-    .src_data_stream_V_dout(img_gray_in_data_str_dout),
-    .src_data_stream_V_empty_n(img_gray_in_data_str_empty_n),
-    .src_data_stream_V_read(Duplicate_U0_src_data_stream_V_read),
-    .dst1_data_stream_V_din(Duplicate_U0_dst1_data_stream_V_din),
-    .dst1_data_stream_V_full_n(img_gray_src0_data_s_full_n),
-    .dst1_data_stream_V_write(Duplicate_U0_dst1_data_stream_V_write),
-    .dst2_data_stream_V_din(Duplicate_U0_dst2_data_stream_V_din),
-    .dst2_data_stream_V_full_n(img_gray_src1_data_s_full_n),
-    .dst2_data_stream_V_write(Duplicate_U0_dst2_data_stream_V_write)
-);
-
-Sobel Sobel_U0(
-    .ap_clk(ap_clk),
-    .ap_rst(ap_rst_n_inv),
-    .ap_start(Sobel_U0_ap_start),
-    .start_full_n(start_for_gradient_decompositi_U0_full_n),
-    .ap_done(Sobel_U0_ap_done),
-    .ap_continue(Sobel_U0_ap_continue),
-    .ap_idle(Sobel_U0_ap_idle),
-    .ap_ready(Sobel_U0_ap_ready),
-    .start_out(Sobel_U0_start_out),
-    .start_write(Sobel_U0_start_write),
-    .p_src_data_stream_V_dout(img_gray_src0_data_s_dout),
-    .p_src_data_stream_V_empty_n(img_gray_src0_data_s_empty_n),
-    .p_src_data_stream_V_read(Sobel_U0_p_src_data_stream_V_read),
-    .p_dst_data_stream_V_din(Sobel_U0_p_dst_data_stream_V_din),
-    .p_dst_data_stream_V_full_n(img_sobel0_data_stre_full_n),
-    .p_dst_data_stream_V_write(Sobel_U0_p_dst_data_stream_V_write)
-);
-
-Sobel_1 Sobel_1_U0(
-    .ap_clk(ap_clk),
-    .ap_rst(ap_rst_n_inv),
-    .ap_start(Sobel_1_U0_ap_start),
-    .ap_done(Sobel_1_U0_ap_done),
-    .ap_continue(Sobel_1_U0_ap_continue),
-    .ap_idle(Sobel_1_U0_ap_idle),
-    .ap_ready(Sobel_1_U0_ap_ready),
-    .p_src_data_stream_V_dout(img_gray_src1_data_s_dout),
-    .p_src_data_stream_V_empty_n(img_gray_src1_data_s_empty_n),
-    .p_src_data_stream_V_read(Sobel_1_U0_p_src_data_stream_V_read),
-    .p_dst_data_stream_V_din(Sobel_1_U0_p_dst_data_stream_V_din),
-    .p_dst_data_stream_V_full_n(img_sobel1_data_stre_full_n),
-    .p_dst_data_stream_V_write(Sobel_1_U0_p_dst_data_stream_V_write)
-);
-
-gradient_decompositi gradient_decompositi_U0(
-    .ap_clk(ap_clk),
-    .ap_rst(ap_rst_n_inv),
-    .ap_start(gradient_decompositi_U0_ap_start),
-    .start_full_n(start_for_nonmax_suppression_U0_full_n),
-    .ap_done(gradient_decompositi_U0_ap_done),
-    .ap_continue(gradient_decompositi_U0_ap_continue),
-    .ap_idle(gradient_decompositi_U0_ap_idle),
-    .ap_ready(gradient_decompositi_U0_ap_ready),
-    .start_out(gradient_decompositi_U0_start_out),
-    .start_write(gradient_decompositi_U0_start_write),
-    .gx_data_stream_V_dout(img_sobel0_data_stre_dout),
-    .gx_data_stream_V_empty_n(img_sobel0_data_stre_empty_n),
-    .gx_data_stream_V_read(gradient_decompositi_U0_gx_data_stream_V_read),
-    .gy_data_stream_V_dout(img_sobel1_data_stre_dout),
-    .gy_data_stream_V_empty_n(img_sobel1_data_stre_empty_n),
-    .gy_data_stream_V_read(gradient_decompositi_U0_gy_data_stream_V_read),
-    .gd_data_stream_V_din(gradient_decompositi_U0_gd_data_stream_V_din),
-    .gd_data_stream_V_full_n(img_grad_data_stream_full_n),
-    .gd_data_stream_V_write(gradient_decompositi_U0_gd_data_stream_V_write)
-);
-
-nonmax_suppression nonmax_suppression_U0(
-    .ap_clk(ap_clk),
-    .ap_rst(ap_rst_n_inv),
-    .ap_start(nonmax_suppression_U0_ap_start),
-    .ap_done(nonmax_suppression_U0_ap_done),
-    .ap_continue(nonmax_suppression_U0_ap_continue),
-    .ap_idle(nonmax_suppression_U0_ap_idle),
-    .ap_ready(nonmax_suppression_U0_ap_ready),
-    .gd_data_stream_V_dout(img_grad_data_stream_dout),
-    .gd_data_stream_V_empty_n(img_grad_data_stream_empty_n),
-    .gd_data_stream_V_read(nonmax_suppression_U0_gd_data_stream_V_read),
-    .dst_data_stream_V_din(nonmax_suppression_U0_dst_data_stream_V_din),
-    .dst_data_stream_V_full_n(img_nms_data_stream_s_full_n),
-    .dst_data_stream_V_write(nonmax_suppression_U0_dst_data_stream_V_write)
-);
-
-hysteresis hysteresis_U0(
-    .ap_clk(ap_clk),
-    .ap_rst(ap_rst_n_inv),
-    .ap_start(hysteresis_U0_ap_start),
-    .start_full_n(start_for_CvtColor_1_U0_full_n),
-    .ap_done(hysteresis_U0_ap_done),
-    .ap_continue(hysteresis_U0_ap_continue),
-    .ap_idle(hysteresis_U0_ap_idle),
-    .ap_ready(hysteresis_U0_ap_ready),
-    .start_out(hysteresis_U0_start_out),
-    .start_write(hysteresis_U0_start_write),
-    .src_data_stream_V_dout(img_nms_data_stream_s_dout),
-    .src_data_stream_V_empty_n(img_nms_data_stream_s_empty_n),
-    .src_data_stream_V_read(hysteresis_U0_src_data_stream_V_read),
-    .dst_data_stream_V_din(hysteresis_U0_dst_data_stream_V_din),
-    .dst_data_stream_V_full_n(img_canny_data_strea_full_n),
-    .dst_data_stream_V_write(hysteresis_U0_dst_data_stream_V_write),
-    .threshold_low_dout(low_threshold_c_dout),
-    .threshold_low_empty_n(low_threshold_c_empty_n),
-    .threshold_low_read(hysteresis_U0_threshold_low_read),
-    .threshold_high_dout(high_threshold_c_dout),
-    .threshold_high_empty_n(high_threshold_c_empty_n),
-    .threshold_high_read(hysteresis_U0_threshold_high_read)
-);
-
-CvtColor_1 CvtColor_1_U0(
-    .ap_clk(ap_clk),
-    .ap_rst(ap_rst_n_inv),
-    .ap_start(CvtColor_1_U0_ap_start),
-    .start_full_n(start_for_hlsMat2plainStream_r_U0_full_n),
-    .ap_done(CvtColor_1_U0_ap_done),
-    .ap_continue(CvtColor_1_U0_ap_continue),
-    .ap_idle(CvtColor_1_U0_ap_idle),
-    .ap_ready(CvtColor_1_U0_ap_ready),
-    .start_out(CvtColor_1_U0_start_out),
-    .start_write(CvtColor_1_U0_start_write),
-    .p_src_data_stream_V_dout(img_canny_data_strea_dout),
-    .p_src_data_stream_V_empty_n(img_canny_data_strea_empty_n),
-    .p_src_data_stream_V_read(CvtColor_1_U0_p_src_data_stream_V_read),
-    .p_dst_data_stream_0_V_din(CvtColor_1_U0_p_dst_data_stream_0_V_din),
-    .p_dst_data_stream_0_V_full_n(img_out_data_stream_s_full_n),
-    .p_dst_data_stream_0_V_write(CvtColor_1_U0_p_dst_data_stream_0_V_write),
-    .p_dst_data_stream_1_V_din(CvtColor_1_U0_p_dst_data_stream_1_V_din),
-    .p_dst_data_stream_1_V_full_n(img_out_data_stream_1_full_n),
-    .p_dst_data_stream_1_V_write(CvtColor_1_U0_p_dst_data_stream_1_V_write),
-    .p_dst_data_stream_2_V_din(CvtColor_1_U0_p_dst_data_stream_2_V_din),
-    .p_dst_data_stream_2_V_full_n(img_out_data_stream_2_full_n),
-    .p_dst_data_stream_2_V_write(CvtColor_1_U0_p_dst_data_stream_2_V_write)
-);
-
-hlsMat2plainStream_r hlsMat2plainStream_r_U0(
-    .ap_clk(ap_clk),
-    .ap_rst(ap_rst_n_inv),
-    .ap_start(hlsMat2plainStream_r_U0_ap_start),
-    .ap_done(hlsMat2plainStream_r_U0_ap_done),
-    .ap_continue(hlsMat2plainStream_r_U0_ap_continue),
-    .ap_idle(hlsMat2plainStream_r_U0_ap_idle),
-    .ap_ready(hlsMat2plainStream_r_U0_ap_ready),
-    .mat_in_data_stream_0_V_dout(img_out_data_stream_s_dout),
-    .mat_in_data_stream_0_V_empty_n(img_out_data_stream_s_empty_n),
-    .mat_in_data_stream_0_V_read(hlsMat2plainStream_r_U0_mat_in_data_stream_0_V_read),
-    .mat_in_data_stream_1_V_dout(img_out_data_stream_1_dout),
-    .mat_in_data_stream_1_V_empty_n(img_out_data_stream_1_empty_n),
-    .mat_in_data_stream_1_V_read(hlsMat2plainStream_r_U0_mat_in_data_stream_1_V_read),
-    .mat_in_data_stream_2_V_dout(img_out_data_stream_2_dout),
-    .mat_in_data_stream_2_V_empty_n(img_out_data_stream_2_empty_n),
-    .mat_in_data_stream_2_V_read(hlsMat2plainStream_r_U0_mat_in_data_stream_2_V_read),
-    .out_stream_TDATA(hlsMat2plainStream_r_U0_out_stream_TDATA),
-    .out_stream_TVALID(hlsMat2plainStream_r_U0_out_stream_TVALID),
-    .out_stream_TREADY(out_stream_TREADY),
-    .out_stream_TKEEP(hlsMat2plainStream_r_U0_out_stream_TKEEP),
-    .out_stream_TSTRB(hlsMat2plainStream_r_U0_out_stream_TSTRB),
-    .out_stream_TUSER(hlsMat2plainStream_r_U0_out_stream_TUSER),
-    .out_stream_TLAST(hlsMat2plainStream_r_U0_out_stream_TLAST),
-    .out_stream_TID(hlsMat2plainStream_r_U0_out_stream_TID),
-    .out_stream_TDEST(hlsMat2plainStream_r_U0_out_stream_TDEST)
-);
-
-fifo_w11_d2_A img_in_rows_V_c_U(
+fifo_w8_d2_A_x strm_src_V_V_U(
     .clk(ap_clk),
     .reset(ap_rst_n_inv),
     .if_read_ce(1'b1),
     .if_write_ce(1'b1),
-    .if_din(Block_proc268_U0_img_in_rows_V_out_din),
-    .if_full_n(img_in_rows_V_c_full_n),
-    .if_write(Block_proc268_U0_img_in_rows_V_out_write),
-    .if_dout(img_in_rows_V_c_dout),
-    .if_empty_n(img_in_rows_V_c_empty_n),
-    .if_read(plainStream2hlsMat_r_U0_mat_out_rows_V_read)
+    .if_din(pre_process211_U0_out_strm_V_V_din),
+    .if_full_n(strm_src_V_V_full_n),
+    .if_write(pre_process211_U0_out_strm_V_V_write),
+    .if_dout(strm_src_V_V_dout),
+    .if_empty_n(strm_src_V_V_empty_n),
+    .if_read(xFCannyEdgeDetector_U0_p_src_mat_V_V_read)
 );
 
-fifo_w12_d2_A img_in_cols_V_c_U(
+fifo_w8_d2_A_x low_threshold_c_U(
     .clk(ap_clk),
     .reset(ap_rst_n_inv),
     .if_read_ce(1'b1),
     .if_write_ce(1'b1),
-    .if_din(Block_proc268_U0_img_in_cols_V_out_din),
-    .if_full_n(img_in_cols_V_c_full_n),
-    .if_write(Block_proc268_U0_img_in_cols_V_out_write),
-    .if_dout(img_in_cols_V_c_dout),
-    .if_empty_n(img_in_cols_V_c_empty_n),
-    .if_read(plainStream2hlsMat_r_U0_mat_out_cols_V_read)
-);
-
-fifo_w32_d8_A low_threshold_c_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(Block_proc268_U0_low_threshold_out_din),
+    .if_din(pre_process211_U0_low_threshold_out_din),
     .if_full_n(low_threshold_c_full_n),
-    .if_write(Block_proc268_U0_low_threshold_out_write),
+    .if_write(pre_process211_U0_low_threshold_out_write),
     .if_dout(low_threshold_c_dout),
     .if_empty_n(low_threshold_c_empty_n),
-    .if_read(hysteresis_U0_threshold_low_read)
+    .if_read(xFCannyEdgeDetector_U0_p_lowthreshold_read)
 );
 
-fifo_w32_d8_A high_threshold_c_U(
+fifo_w8_d2_A_x high_threshold_c_U(
     .clk(ap_clk),
     .reset(ap_rst_n_inv),
     .if_read_ce(1'b1),
     .if_write_ce(1'b1),
-    .if_din(Block_proc268_U0_high_threshold_out_din),
+    .if_din(pre_process211_U0_high_threshold_out_din),
     .if_full_n(high_threshold_c_full_n),
-    .if_write(Block_proc268_U0_high_threshold_out_write),
+    .if_write(pre_process211_U0_high_threshold_out_write),
     .if_dout(high_threshold_c_dout),
     .if_empty_n(high_threshold_c_empty_n),
-    .if_read(hysteresis_U0_threshold_high_read)
+    .if_read(xFCannyEdgeDetector_U0_p_highthreshold_read)
 );
 
-fifo_w8_d2_A img_in_data_stream_0_U(
+fifo_w2_d2_A strm_dst_V_V_U(
     .clk(ap_clk),
     .reset(ap_rst_n_inv),
     .if_read_ce(1'b1),
     .if_write_ce(1'b1),
-    .if_din(plainStream2hlsMat_r_U0_mat_out_data_stream_0_V_din),
-    .if_full_n(img_in_data_stream_0_full_n),
-    .if_write(plainStream2hlsMat_r_U0_mat_out_data_stream_0_V_write),
-    .if_dout(img_in_data_stream_0_dout),
-    .if_empty_n(img_in_data_stream_0_empty_n),
-    .if_read(CvtColor_U0_p_src_data_stream_0_V_read)
+    .if_din(xFCannyEdgeDetector_U0_out_strm_V_V_din),
+    .if_full_n(strm_dst_V_V_full_n),
+    .if_write(xFCannyEdgeDetector_U0_out_strm_V_V_write),
+    .if_dout(strm_dst_V_V_dout),
+    .if_empty_n(strm_dst_V_V_empty_n),
+    .if_read(post_process_U0_in_strm_V_V_read)
 );
 
-fifo_w8_d2_A img_in_data_stream_1_U(
+start_for_xFCannysc4 start_for_xFCannysc4_U(
     .clk(ap_clk),
     .reset(ap_rst_n_inv),
     .if_read_ce(1'b1),
     .if_write_ce(1'b1),
-    .if_din(plainStream2hlsMat_r_U0_mat_out_data_stream_1_V_din),
-    .if_full_n(img_in_data_stream_1_full_n),
-    .if_write(plainStream2hlsMat_r_U0_mat_out_data_stream_1_V_write),
-    .if_dout(img_in_data_stream_1_dout),
-    .if_empty_n(img_in_data_stream_1_empty_n),
-    .if_read(CvtColor_U0_p_src_data_stream_1_V_read)
+    .if_din(start_for_xFCannyEdgeDetector_U0_din),
+    .if_full_n(start_for_xFCannyEdgeDetector_U0_full_n),
+    .if_write(pre_process211_U0_start_write),
+    .if_dout(start_for_xFCannyEdgeDetector_U0_dout),
+    .if_empty_n(start_for_xFCannyEdgeDetector_U0_empty_n),
+    .if_read(xFCannyEdgeDetector_U0_ap_ready)
 );
 
-fifo_w8_d2_A img_in_data_stream_2_U(
+start_for_post_prtde start_for_post_prtde_U(
     .clk(ap_clk),
     .reset(ap_rst_n_inv),
     .if_read_ce(1'b1),
     .if_write_ce(1'b1),
-    .if_din(plainStream2hlsMat_r_U0_mat_out_data_stream_2_V_din),
-    .if_full_n(img_in_data_stream_2_full_n),
-    .if_write(plainStream2hlsMat_r_U0_mat_out_data_stream_2_V_write),
-    .if_dout(img_in_data_stream_2_dout),
-    .if_empty_n(img_in_data_stream_2_empty_n),
-    .if_read(CvtColor_U0_p_src_data_stream_2_V_read)
+    .if_din(start_for_post_process_U0_din),
+    .if_full_n(start_for_post_process_U0_full_n),
+    .if_write(xFCannyEdgeDetector_U0_start_write),
+    .if_dout(start_for_post_process_U0_dout),
+    .if_empty_n(start_for_post_process_U0_empty_n),
+    .if_read(post_process_U0_ap_ready)
 );
 
-fifo_w11_d2_A img_in_rows_V_c22_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(plainStream2hlsMat_r_U0_mat_out_rows_V_out_din),
-    .if_full_n(img_in_rows_V_c22_full_n),
-    .if_write(plainStream2hlsMat_r_U0_mat_out_rows_V_out_write),
-    .if_dout(img_in_rows_V_c22_dout),
-    .if_empty_n(img_in_rows_V_c22_empty_n),
-    .if_read(CvtColor_U0_p_src_rows_V_read)
-);
+assign ap_done = post_process_U0_ap_done;
 
-fifo_w12_d2_A img_in_cols_V_c23_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(plainStream2hlsMat_r_U0_mat_out_cols_V_out_din),
-    .if_full_n(img_in_cols_V_c23_full_n),
-    .if_write(plainStream2hlsMat_r_U0_mat_out_cols_V_out_write),
-    .if_dout(img_in_cols_V_c23_dout),
-    .if_empty_n(img_in_cols_V_c23_empty_n),
-    .if_read(CvtColor_U0_p_src_cols_V_read)
-);
+assign ap_idle = (xFCannyEdgeDetector_U0_ap_idle & pre_process211_U0_ap_idle & post_process_U0_ap_idle);
 
-fifo_w8_d2_A img_gray_in_data_str_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(CvtColor_U0_p_dst_data_stream_V_din),
-    .if_full_n(img_gray_in_data_str_full_n),
-    .if_write(CvtColor_U0_p_dst_data_stream_V_write),
-    .if_dout(img_gray_in_data_str_dout),
-    .if_empty_n(img_gray_in_data_str_empty_n),
-    .if_read(Duplicate_U0_src_data_stream_V_read)
-);
-
-fifo_w8_d2_A img_gray_src0_data_s_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(Duplicate_U0_dst1_data_stream_V_din),
-    .if_full_n(img_gray_src0_data_s_full_n),
-    .if_write(Duplicate_U0_dst1_data_stream_V_write),
-    .if_dout(img_gray_src0_data_s_dout),
-    .if_empty_n(img_gray_src0_data_s_empty_n),
-    .if_read(Sobel_U0_p_src_data_stream_V_read)
-);
-
-fifo_w8_d2_A img_gray_src1_data_s_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(Duplicate_U0_dst2_data_stream_V_din),
-    .if_full_n(img_gray_src1_data_s_full_n),
-    .if_write(Duplicate_U0_dst2_data_stream_V_write),
-    .if_dout(img_gray_src1_data_s_dout),
-    .if_empty_n(img_gray_src1_data_s_empty_n),
-    .if_read(Sobel_1_U0_p_src_data_stream_V_read)
-);
-
-fifo_w16_d2_A img_sobel0_data_stre_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(Sobel_U0_p_dst_data_stream_V_din),
-    .if_full_n(img_sobel0_data_stre_full_n),
-    .if_write(Sobel_U0_p_dst_data_stream_V_write),
-    .if_dout(img_sobel0_data_stre_dout),
-    .if_empty_n(img_sobel0_data_stre_empty_n),
-    .if_read(gradient_decompositi_U0_gx_data_stream_V_read)
-);
-
-fifo_w16_d2_A img_sobel1_data_stre_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(Sobel_1_U0_p_dst_data_stream_V_din),
-    .if_full_n(img_sobel1_data_stre_full_n),
-    .if_write(Sobel_1_U0_p_dst_data_stream_V_write),
-    .if_dout(img_sobel1_data_stre_dout),
-    .if_empty_n(img_sobel1_data_stre_empty_n),
-    .if_read(gradient_decompositi_U0_gy_data_stream_V_read)
-);
-
-fifo_w16_d2_A img_grad_data_stream_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(gradient_decompositi_U0_gd_data_stream_V_din),
-    .if_full_n(img_grad_data_stream_full_n),
-    .if_write(gradient_decompositi_U0_gd_data_stream_V_write),
-    .if_dout(img_grad_data_stream_dout),
-    .if_empty_n(img_grad_data_stream_empty_n),
-    .if_read(nonmax_suppression_U0_gd_data_stream_V_read)
-);
-
-fifo_w16_d2_A img_nms_data_stream_s_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(nonmax_suppression_U0_dst_data_stream_V_din),
-    .if_full_n(img_nms_data_stream_s_full_n),
-    .if_write(nonmax_suppression_U0_dst_data_stream_V_write),
-    .if_dout(img_nms_data_stream_s_dout),
-    .if_empty_n(img_nms_data_stream_s_empty_n),
-    .if_read(hysteresis_U0_src_data_stream_V_read)
-);
-
-fifo_w8_d2_A img_canny_data_strea_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(hysteresis_U0_dst_data_stream_V_din),
-    .if_full_n(img_canny_data_strea_full_n),
-    .if_write(hysteresis_U0_dst_data_stream_V_write),
-    .if_dout(img_canny_data_strea_dout),
-    .if_empty_n(img_canny_data_strea_empty_n),
-    .if_read(CvtColor_1_U0_p_src_data_stream_V_read)
-);
-
-fifo_w8_d2_A img_out_data_stream_s_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(CvtColor_1_U0_p_dst_data_stream_0_V_din),
-    .if_full_n(img_out_data_stream_s_full_n),
-    .if_write(CvtColor_1_U0_p_dst_data_stream_0_V_write),
-    .if_dout(img_out_data_stream_s_dout),
-    .if_empty_n(img_out_data_stream_s_empty_n),
-    .if_read(hlsMat2plainStream_r_U0_mat_in_data_stream_0_V_read)
-);
-
-fifo_w8_d2_A img_out_data_stream_1_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(CvtColor_1_U0_p_dst_data_stream_1_V_din),
-    .if_full_n(img_out_data_stream_1_full_n),
-    .if_write(CvtColor_1_U0_p_dst_data_stream_1_V_write),
-    .if_dout(img_out_data_stream_1_dout),
-    .if_empty_n(img_out_data_stream_1_empty_n),
-    .if_read(hlsMat2plainStream_r_U0_mat_in_data_stream_1_V_read)
-);
-
-fifo_w8_d2_A img_out_data_stream_2_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(CvtColor_1_U0_p_dst_data_stream_2_V_din),
-    .if_full_n(img_out_data_stream_2_full_n),
-    .if_write(CvtColor_1_U0_p_dst_data_stream_2_V_write),
-    .if_dout(img_out_data_stream_2_dout),
-    .if_empty_n(img_out_data_stream_2_empty_n),
-    .if_read(hlsMat2plainStream_r_U0_mat_in_data_stream_2_V_read)
-);
-
-start_for_hysteresc4 start_for_hysteresc4_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(start_for_hysteresis_U0_din),
-    .if_full_n(start_for_hysteresis_U0_full_n),
-    .if_write(Block_proc268_U0_start_write),
-    .if_dout(start_for_hysteresis_U0_dout),
-    .if_empty_n(start_for_hysteresis_U0_empty_n),
-    .if_read(hysteresis_U0_ap_ready)
-);
-
-start_for_CvtColotde start_for_CvtColotde_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(start_for_CvtColor_U0_din),
-    .if_full_n(start_for_CvtColor_U0_full_n),
-    .if_write(plainStream2hlsMat_r_U0_start_write),
-    .if_dout(start_for_CvtColor_U0_dout),
-    .if_empty_n(start_for_CvtColor_U0_empty_n),
-    .if_read(CvtColor_U0_ap_ready)
-);
-
-start_for_Duplicaudo start_for_Duplicaudo_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(start_for_Duplicate_U0_din),
-    .if_full_n(start_for_Duplicate_U0_full_n),
-    .if_write(CvtColor_U0_start_write),
-    .if_dout(start_for_Duplicate_U0_dout),
-    .if_empty_n(start_for_Duplicate_U0_empty_n),
-    .if_read(Duplicate_U0_ap_ready)
-);
-
-start_for_Sobel_U0 start_for_Sobel_U0_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(start_for_Sobel_U0_din),
-    .if_full_n(start_for_Sobel_U0_full_n),
-    .if_write(Duplicate_U0_start_write),
-    .if_dout(start_for_Sobel_U0_dout),
-    .if_empty_n(start_for_Sobel_U0_empty_n),
-    .if_read(Sobel_U0_ap_ready)
-);
-
-start_for_Sobel_1vdy start_for_Sobel_1vdy_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(start_for_Sobel_1_U0_din),
-    .if_full_n(start_for_Sobel_1_U0_full_n),
-    .if_write(Duplicate_U0_start_write),
-    .if_dout(start_for_Sobel_1_U0_dout),
-    .if_empty_n(start_for_Sobel_1_U0_empty_n),
-    .if_read(Sobel_1_U0_ap_ready)
-);
-
-start_for_gradienwdI start_for_gradienwdI_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(start_for_gradient_decompositi_U0_din),
-    .if_full_n(start_for_gradient_decompositi_U0_full_n),
-    .if_write(Sobel_U0_start_write),
-    .if_dout(start_for_gradient_decompositi_U0_dout),
-    .if_empty_n(start_for_gradient_decompositi_U0_empty_n),
-    .if_read(gradient_decompositi_U0_ap_ready)
-);
-
-start_for_nonmax_xdS start_for_nonmax_xdS_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(start_for_nonmax_suppression_U0_din),
-    .if_full_n(start_for_nonmax_suppression_U0_full_n),
-    .if_write(gradient_decompositi_U0_start_write),
-    .if_dout(start_for_nonmax_suppression_U0_dout),
-    .if_empty_n(start_for_nonmax_suppression_U0_empty_n),
-    .if_read(nonmax_suppression_U0_ap_ready)
-);
-
-start_for_CvtColoyd2 start_for_CvtColoyd2_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(start_for_CvtColor_1_U0_din),
-    .if_full_n(start_for_CvtColor_1_U0_full_n),
-    .if_write(hysteresis_U0_start_write),
-    .if_dout(start_for_CvtColor_1_U0_dout),
-    .if_empty_n(start_for_CvtColor_1_U0_empty_n),
-    .if_read(CvtColor_1_U0_ap_ready)
-);
-
-start_for_hlsMat2zec start_for_hlsMat2zec_U(
-    .clk(ap_clk),
-    .reset(ap_rst_n_inv),
-    .if_read_ce(1'b1),
-    .if_write_ce(1'b1),
-    .if_din(start_for_hlsMat2plainStream_r_U0_din),
-    .if_full_n(start_for_hlsMat2plainStream_r_U0_full_n),
-    .if_write(CvtColor_1_U0_start_write),
-    .if_dout(start_for_hlsMat2plainStream_r_U0_dout),
-    .if_empty_n(start_for_hlsMat2plainStream_r_U0_empty_n),
-    .if_read(hlsMat2plainStream_r_U0_ap_ready)
-);
-
-assign Block_proc268_U0_ap_continue = 1'b1;
-
-assign Block_proc268_U0_ap_start = 1'b1;
-
-assign CvtColor_1_U0_ap_continue = 1'b1;
-
-assign CvtColor_1_U0_ap_start = start_for_CvtColor_1_U0_empty_n;
-
-assign CvtColor_U0_ap_continue = 1'b1;
-
-assign CvtColor_U0_ap_start = start_for_CvtColor_U0_empty_n;
-
-assign Duplicate_U0_ap_continue = 1'b1;
-
-assign Duplicate_U0_ap_start = start_for_Duplicate_U0_empty_n;
-
-assign Duplicate_U0_start_full_n = (start_for_Sobel_U0_full_n & start_for_Sobel_1_U0_full_n);
-
-assign Sobel_1_U0_ap_continue = 1'b1;
-
-assign Sobel_1_U0_ap_start = start_for_Sobel_1_U0_empty_n;
-
-assign Sobel_1_U0_start_full_n = 1'b1;
-
-assign Sobel_1_U0_start_write = 1'b0;
-
-assign Sobel_U0_ap_continue = 1'b1;
-
-assign Sobel_U0_ap_start = start_for_Sobel_U0_empty_n;
+assign ap_ready = pre_process211_U0_ap_ready;
 
 always @ (*) begin
     ap_rst_n_inv = ~ap_rst_n;
 end
 
-assign ap_sync_continue = 1'b0;
+assign ap_sync_continue = 1'b1;
 
-assign gradient_decompositi_U0_ap_continue = 1'b1;
+assign ap_sync_done = post_process_U0_ap_done;
 
-assign gradient_decompositi_U0_ap_start = start_for_gradient_decompositi_U0_empty_n;
+assign ap_sync_ready = pre_process211_U0_ap_ready;
 
-assign hlsMat2plainStream_r_U0_ap_continue = 1'b1;
+assign in_strm_TREADY = pre_process211_U0_in_strm_TREADY;
 
-assign hlsMat2plainStream_r_U0_ap_start = start_for_hlsMat2plainStream_r_U0_empty_n;
+assign out_strm_TDATA = post_process_U0_out_strm_TDATA;
 
-assign hlsMat2plainStream_r_U0_start_full_n = 1'b1;
+assign out_strm_TDEST = post_process_U0_out_strm_TDEST;
 
-assign hlsMat2plainStream_r_U0_start_write = 1'b0;
+assign out_strm_TID = post_process_U0_out_strm_TID;
 
-assign hysteresis_U0_ap_continue = 1'b1;
+assign out_strm_TKEEP = post_process_U0_out_strm_TKEEP;
 
-assign hysteresis_U0_ap_start = start_for_hysteresis_U0_empty_n;
+assign out_strm_TLAST = post_process_U0_out_strm_TLAST;
 
-assign in_stream_TREADY = plainStream2hlsMat_r_U0_in_stream_TREADY;
+assign out_strm_TSTRB = post_process_U0_out_strm_TSTRB;
 
-assign nonmax_suppression_U0_ap_continue = 1'b1;
+assign out_strm_TUSER = post_process_U0_out_strm_TUSER;
 
-assign nonmax_suppression_U0_ap_start = start_for_nonmax_suppression_U0_empty_n;
+assign out_strm_TVALID = post_process_U0_out_strm_TVALID;
 
-assign nonmax_suppression_U0_start_full_n = 1'b1;
+assign post_process_U0_ap_continue = 1'b1;
 
-assign nonmax_suppression_U0_start_write = 1'b0;
+assign post_process_U0_ap_start = start_for_post_process_U0_empty_n;
 
-assign out_stream_TDATA = hlsMat2plainStream_r_U0_out_stream_TDATA;
+assign post_process_U0_start_full_n = 1'b1;
 
-assign out_stream_TDEST = hlsMat2plainStream_r_U0_out_stream_TDEST;
+assign post_process_U0_start_write = 1'b0;
 
-assign out_stream_TID = hlsMat2plainStream_r_U0_out_stream_TID;
+assign pre_process211_U0_ap_continue = 1'b1;
 
-assign out_stream_TKEEP = hlsMat2plainStream_r_U0_out_stream_TKEEP;
+assign pre_process211_U0_ap_start = ap_start;
 
-assign out_stream_TLAST = hlsMat2plainStream_r_U0_out_stream_TLAST;
+assign start_for_post_process_U0_din = 1'b1;
 
-assign out_stream_TSTRB = hlsMat2plainStream_r_U0_out_stream_TSTRB;
+assign start_for_xFCannyEdgeDetector_U0_din = 1'b1;
 
-assign out_stream_TUSER = hlsMat2plainStream_r_U0_out_stream_TUSER;
+assign xFCannyEdgeDetector_U0_ap_continue = 1'b1;
 
-assign out_stream_TVALID = hlsMat2plainStream_r_U0_out_stream_TVALID;
-
-assign plainStream2hlsMat_r_U0_ap_continue = 1'b1;
-
-assign plainStream2hlsMat_r_U0_ap_start = 1'b1;
-
-assign start_for_CvtColor_1_U0_din = 1'b1;
-
-assign start_for_CvtColor_U0_din = 1'b1;
-
-assign start_for_Duplicate_U0_din = 1'b1;
-
-assign start_for_Sobel_1_U0_din = 1'b1;
-
-assign start_for_Sobel_U0_din = 1'b1;
-
-assign start_for_gradient_decompositi_U0_din = 1'b1;
-
-assign start_for_hlsMat2plainStream_r_U0_din = 1'b1;
-
-assign start_for_hysteresis_U0_din = 1'b1;
-
-assign start_for_nonmax_suppression_U0_din = 1'b1;
+assign xFCannyEdgeDetector_U0_ap_start = start_for_xFCannyEdgeDetector_U0_empty_n;
 
 endmodule //Canny_accel

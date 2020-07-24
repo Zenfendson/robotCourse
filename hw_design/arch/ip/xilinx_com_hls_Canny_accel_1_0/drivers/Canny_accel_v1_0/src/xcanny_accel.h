@@ -1,5 +1,5 @@
 // ==============================================================
-// File generated on Wed Jul 22 09:49:56 +0800 2020
+// File generated on Fri Jul 24 10:37:09 +0800 2020
 // Vivado(TM) HLS - High-Level Synthesis from C, C++ and SystemC v2018.3 (64-bit)
 // SW Build 2405991 on Thu Dec  6 23:38:27 MST 2018
 // IP Build 2404404 on Fri Dec  7 01:43:56 MST 2018
@@ -80,11 +80,25 @@ int XCanny_accel_Initialize(XCanny_accel *InstancePtr, const char* InstanceName)
 int XCanny_accel_Release(XCanny_accel *InstancePtr);
 #endif
 
+void XCanny_accel_Start(XCanny_accel *InstancePtr);
+u32 XCanny_accel_IsDone(XCanny_accel *InstancePtr);
+u32 XCanny_accel_IsIdle(XCanny_accel *InstancePtr);
+u32 XCanny_accel_IsReady(XCanny_accel *InstancePtr);
+void XCanny_accel_EnableAutoRestart(XCanny_accel *InstancePtr);
+void XCanny_accel_DisableAutoRestart(XCanny_accel *InstancePtr);
 
 void XCanny_accel_Set_low_threshold(XCanny_accel *InstancePtr, u32 Data);
 u32 XCanny_accel_Get_low_threshold(XCanny_accel *InstancePtr);
 void XCanny_accel_Set_high_threshold(XCanny_accel *InstancePtr, u32 Data);
 u32 XCanny_accel_Get_high_threshold(XCanny_accel *InstancePtr);
+
+void XCanny_accel_InterruptGlobalEnable(XCanny_accel *InstancePtr);
+void XCanny_accel_InterruptGlobalDisable(XCanny_accel *InstancePtr);
+void XCanny_accel_InterruptEnable(XCanny_accel *InstancePtr, u32 Mask);
+void XCanny_accel_InterruptDisable(XCanny_accel *InstancePtr, u32 Mask);
+void XCanny_accel_InterruptClear(XCanny_accel *InstancePtr, u32 Mask);
+u32 XCanny_accel_InterruptGetEnabled(XCanny_accel *InstancePtr);
+u32 XCanny_accel_InterruptGetStatus(XCanny_accel *InstancePtr);
 
 #ifdef __cplusplus
 }

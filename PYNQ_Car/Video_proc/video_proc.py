@@ -121,5 +121,7 @@ class video_proc_wrapper(DefaultHierarchy):
         self.switch_stream(0)     
     
     def __del__(self):
-        self._sendchannel.stop()
-        self._recvchannel.stop()
+        if(self._sendchannel.running()):
+            self._sendchannel.stop()
+        if(self._recvchannel.running()):
+            self._recvchannel.stop()
