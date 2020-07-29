@@ -95,8 +95,8 @@
 #set_property -dict { PACKAGE_PIN U12   IOSTANDARD LVCMOS33 } [ get_ports { B }]; #IO_L2N_T0_34 Sch=ar[1]
 #set_property -dict { PACKAGE_PIN U13   IOSTANDARD LVCMOS33 } [get_ports { ar[2] }]; #IO_L3P_T0_DQS_PUDC_B_34 Sch=ar[2]
 set_property -dict { PACKAGE_PIN V13   IOSTANDARD LVCMOS33 } [get_ports { Servo_PWM }]; #IO_L3N_T0_DQS_34 Sch=ar[3]
-set_property -dict { PACKAGE_PIN V15   IOSTANDARD LVCMOS33 } [get_ports { IMU_IIC_scl_io }]; #IO_L10P_T1_34 Sch=ar[4]
-set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports { IMU_IIC_sda_io }]; #IO_L5N_T0_34 Sch=ar[5]
+#set_property -dict { PACKAGE_PIN V15   IOSTANDARD LVCMOS33 } [get_ports { IMU_IIC_scl_io }]; #IO_L10P_T1_34 Sch=ar[4]
+set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports { ultrasonic_sig_io }]; #IO_L5N_T0_34 Sch=ar[5]
 set_property -dict { PACKAGE_PIN R16   IOSTANDARD LVCMOS33 } [get_ports { Motor_PWM }]; #IO_L19P_T3_34 Sch=ar[6]
 set_property -dict { PACKAGE_PIN U17   IOSTANDARD LVCMOS33 } [get_ports { Motor_DIR }]; #IO_L9N_T1_DQS_34 Sch=ar[7]
 set_property -dict { PACKAGE_PIN V17   IOSTANDARD LVCMOS33 } [get_ports { A }]; #IO_L21P_T3_DQS_34 Sch=ar[8]
@@ -126,8 +126,8 @@ set_property -dict { PACKAGE_PIN V18   IOSTANDARD LVCMOS33 } [get_ports { B }]; 
 
 ## Arduino I2C
 
-#set_property -dict { PACKAGE_PIN P16   IOSTANDARD LVCMOS33 } [get_ports { ar_scl }]; #IO_L24N_T3_34 Sch=ar_scl
-#set_property -dict { PACKAGE_PIN P15   IOSTANDARD LVCMOS33 } [get_ports { ar_sda }]; #IO_L24P_T3_34 Sch=ar_sda
+set_property -dict { PACKAGE_PIN P15   IOSTANDARD LVCMOS33 } [get_ports { IMU_IIC_scl_io }]; #IO_L24N_T3_34 Sch=ar_scl
+set_property -dict { PACKAGE_PIN P16   IOSTANDARD LVCMOS33 } [get_ports { IMU_IIC_sda_io }]; #IO_L24P_T3_34 Sch=ar_sda
 
 ##Raspberry Digital I/O 
 
