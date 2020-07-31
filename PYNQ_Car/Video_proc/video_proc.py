@@ -5,6 +5,11 @@ from pynq.xlnk import Xlnk
 import numpy as np
 xlnk = Xlnk()
 
+BYPASS = 0
+SOBELX = 1
+SOBELY = 2
+CANNY = 3
+
 class video_proc_wrapper(DefaultHierarchy):
     def __init__(self, description, vdma=None):
         
@@ -14,6 +19,9 @@ class video_proc_wrapper(DefaultHierarchy):
         self._switch_back = self.axis_interconnect_back.xbar
         self._sendchannel = self._dma.sendchannel
         self._recvchannel = self._dma.recvchannel
+        self.state = BYPASS
+        self.canny_low = 80
+        self.canny_high = 80
         
         self.canny_core = self.Canny_accel_0
         self.gpio_dict = PL.gpio_dict
@@ -58,9 +66,10 @@ class video_proc_wrapper(DefaultHierarchy):
         self.reset()
         self.start()
         self.setBypass()
-        self.canny_core.write(0x10, 20)
+        self.canny_core.write(0x00, 0X00)
+        self.canny_core.write(0x10, 80)
         self.canny_core.write(0x18, 80)
-        self.canny_core.write(0x00, 81)
+        self.canny_core.write(0x00, 0X81)
         
         
     def start(self):
@@ -72,7 +81,9 @@ class video_proc_wrapper(DefaultHierarchy):
         self._recvchannel.stop()
     
     def SobelX(self,frame):
-        self.setSobelX()
+        if self.state != SOBELX:
+            self.setSobelX()
+            self.state = SOBELX
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
@@ -81,7 +92,9 @@ class video_proc_wrapper(DefaultHierarchy):
         return res
     
     def SobelY(self,frame):
-        self.setSobelY()
+        if self.state != SOBELY:
+            self.setSobelY()
+            self.state = SOBELY
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
@@ -90,7 +103,11 @@ class video_proc_wrapper(DefaultHierarchy):
         return res
     
     def Canny(self,frame,low_threshold,high_threshold):
-        self.setCanny(low_threshold,high_threshold)
+        if self.state != CANNY or (self.state == CANNY and (self.canny_low != low_threshold or self.canny_high != high_threshold)):
+            self.setCanny(low_threshold,high_threshold)
+            self.canny_low = low_threshold
+            self.canny_high = high_threshold
+            self.state = CANNY
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
@@ -99,7 +116,9 @@ class video_proc_wrapper(DefaultHierarchy):
         return res
     
     def Bypass(self,frame):
-        self.setBypass()
+        if self.state != BYPASS:
+            self.setBypass()
+            self.state = BYPASS
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
@@ -114,11 +133,12 @@ class video_proc_wrapper(DefaultHierarchy):
         self.switch_stream(3)     
     
     def setCanny(self,low_threshold,high_threshold):
+        self.switch_stream(1) 
         self.canny_core.write(0x00, 0X00)
         self.canny_core.write(0x10, int(low_threshold))
         self.canny_core.write(0x18, int(high_threshold))
         self.canny_core.write(0x00, 0X81)
-        self.switch_stream(1)     
+            
     
     def setBypass(self):
         self.switch_stream(0)     
