@@ -78,6 +78,7 @@ class video_proc_wrapper(DefaultHierarchy):
     def SobelX(self,frame):
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
+        self.setSobelX()
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
         self._sendchannel.transfer(frame)
         self._recvchannel.transfer(res)
@@ -86,6 +87,7 @@ class video_proc_wrapper(DefaultHierarchy):
     def SobelY(self,frame):
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
+        self.setSobelY()
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
         self._sendchannel.transfer(frame)
         self._recvchannel.transfer(res)
@@ -94,6 +96,7 @@ class video_proc_wrapper(DefaultHierarchy):
     def Canny(self,frame,low_threshold,high_threshold):
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
+        self.setCanny()
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
         self._sendchannel.transfer(frame)
         self._recvchannel.transfer(res)
