@@ -58,24 +58,46 @@
 #include "timer.h"
 #include "i2c.h"
 #include <xparameters.h>
-#include "AXI_PWM.h"
 #include "AXI_Encoder.h"
 #include "xil_io.h"
+#include "motor.h"
+#include "servo.h"
+#include "xio_switch.h"
+#include "ultrasonic_ranger.h"
+#include "encoder.h"
+#include "XTmrCtr.h"
+#include "Xintc.h"
+#include "math.h"
+
+typedef struct
+{
+	float target_servo_angle;
+	int velocity;
+	Servo *servo;
+	Encoder *encoderL;
+	Encoder *encoderR;
+	Motor *motorL;
+	Motor *motorR;
+}ISR_param;
 
 #define NUM_SAMPLES              100
 
 // Mailbox commands
-#define RESET 1
-#define GET_ACCL_DATA 3
-#define GET_GYRO_DATA 5
-#define GET_COMPASS_DATA 7
-#define GET_ENCODER_DATA 9
-#define SET_ENCODER_DIR 11
-#define SET_ENCODER_SAMPLE_INTERVAL_MS 13
-#define SET_MOTOR_FREQ 15
-#define SET_MOTOR_PWM 17
-#define SET_MOTOR_DIR 19
-#define SET_SERVO_PWM 21
+#define INIT				1
+#define RESET 				3
+#define SET_IIC_PINS			5
+#define GET_ACCL_DATA 		7
+#define GET_GYRO_DATA 		9
+#define GET_COMPASS_DATA 	11
+#define GET_ENCODER_DATA 	13
+#define SET_ENCODER_DIR 	15
+#define SET_MOTOR_PINS 		17
+#define SET_MOTOR_DIR 		19
+#define SET_VELOCITY  		21
+#define SET_SERVO_ANGLE  	23
+#define SET_SERVO_PIN 		25
+#define GET_ULRANGER_DATA 	27
+#define SET_MOTOR_MODE      29
 
 static i2c device;
 
@@ -237,46 +259,127 @@ void mpu_setSleepEnabled(uint8_t enabled) {
                     MPU9250_PWR1_SLEEP_BIT, &enabled);
 }
 
-// BMP180 driver functions
-void motor_init()
+void interruptSetup(XIntc * InterruptController,XTmrCtr * TimerCounterInst,int TMRCTR_DEVICE_ID,int INTC_DEVICE_ID,int TMRCTR_INTERRUPT_ID,int TIMER_CNTR,void * ISR, void * param)
 {
-	//slv0: duty of the PWM
-	AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_PWM_MOTOR_S_AXI_BASEADDR, AXI_PWM_S_AXI_SLV_REG0_OFFSET, 0);
-	//slv1: freq_ratio, PWM freq = in_clk/freq_ratio;
-	AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_PWM_MOTOR_S_AXI_BASEADDR, AXI_PWM_S_AXI_SLV_REG1_OFFSET, 100000);
-	//slv2: direction of Motor
-	AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_PWM_MOTOR_S_AXI_BASEADDR, AXI_PWM_S_AXI_SLV_REG2_OFFSET, 0);
-}
+	XTmrCtr_Initialize(TimerCounterInst, TMRCTR_DEVICE_ID);
 
-void servo_init()
-{
-	AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_PWM_SERVO_S_AXI_BASEADDR, AXI_PWM_S_AXI_SLV_REG0_OFFSET, 300);
-	AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_PWM_SERVO_S_AXI_BASEADDR, AXI_PWM_S_AXI_SLV_REG1_OFFSET, 500000);
-}
+	XIntc_Initialize(InterruptController, INTC_DEVICE_ID);
 
-void encoder_init()
-{
-	//slv0: data (read only)
-	//slv1: clock_per_ms
-	AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_ENCODER_S_AXI_BASEADDR, AXI_ENCODER_S_AXI_SLV_REG1_OFFSET, 100000);
-	//slv2: sample interval in ms
-	AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_ENCODER_S_AXI_BASEADDR, AXI_ENCODER_S_AXI_SLV_REG2_OFFSET, 10);
-	//slv3: direction
-	AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_ENCODER_S_AXI_BASEADDR, AXI_ENCODER_S_AXI_SLV_REG3_OFFSET, 0);
+	XIntc_Connect(InterruptController,TMRCTR_INTERRUPT_ID,(XInterruptHandler)XTmrCtr_InterruptHandler,TimerCounterInst);
+
+	XIntc_Start(InterruptController, XIN_REAL_MODE);
+
+	XIntc_Enable(InterruptController, TMRCTR_INTERRUPT_ID);
+
+	Xil_ExceptionInit();
+
+	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,(Xil_ExceptionHandler)XIntc_InterruptHandler,InterruptController);
+
+	Xil_ExceptionEnable();
+
+	XTmrCtr_SetHandler(TimerCounterInst,ISR,param);
+
+	XTmrCtr_SetOptions(TimerCounterInst, TIMER_CNTR,XTC_INT_MODE_OPTION | XTC_AUTO_RELOAD_OPTION | XTC_DOWN_COUNT_OPTION);
+
+	XTmrCtr_SetResetValue(TimerCounterInst, TIMER_CNTR, XPAR_MICROBLAZE_CORE_CLOCK_FREQ_HZ / 100);
+
+	XTmrCtr_Start(TimerCounterInst, TIMER_CNTR);
 }
+#define T 0.156f
+#define L 0.1445f
+#define pi 3.1415926
+void Kinematic_Analysis(int velocity, float angle, float * Target_A,float * Target_B,int *servo)
+{
+  char K = 1;
+  *Target_A = velocity * (1 + T * tan(angle * pi / 180) / 2 / L);
+  *Target_B = velocity * (1 - T * tan(angle * pi / 180) / 2 / L);
+  *servo = 95 + angle * K;
+}
+const float Velocity_KP = 0.6, Velocity_KD =  0.6,Encoder2pwm = 41.7;
+int Incremental_PD_A (int Target,int Encoder)
+{
+   static float Bias,Pwm,Last_bias;
+   Bias=Target - Encoder*Encoder2pwm;
+   Pwm+=Velocity_KD*(Bias-Last_bias)+Velocity_KP*Bias;
+   //Pwm+=Velocity_KP*Bias;
+   if(Pwm>1000)Pwm=1000;
+   if(Pwm<-1000)Pwm=-1000;
+   Last_bias=Bias;
+   return Pwm;
+}
+int Incremental_PD_B (int Target,int Encoder )
+{
+   static float Bias,Pwm,Last_bias;
+   Bias=Target - Encoder*Encoder2pwm;
+   Pwm+=Velocity_KD*(Bias-Last_bias)+Velocity_KP*Bias;
+   //Pwm+=Velocity_KP*Bias;
+   if(Pwm>1000)Pwm=1000;
+    if(Pwm<-1000)Pwm=-1000;
+   Last_bias=Bias;
+   return Pwm;
+}
+#define SERVO_VAL_MIN 0
+#define SERVO_VAL_MAX 180
+#define PWM_MIN 120
+#define PWM_MAX 480
+int map_servo(int value)
+{
+	int res;
+	if(value<SERVO_VAL_MIN)value = SERVO_VAL_MIN;
+	if(value>SERVO_VAL_MAX)value = SERVO_VAL_MAX;
+	float scale = (float)(PWM_MAX - PWM_MIN)/(float)(SERVO_VAL_MAX - SERVO_VAL_MIN);
+	res = value*scale + PWM_MIN;
+	return res;
+}
+void timer_10ms_ISR(void * CallBackRef)
+{
+	ISR_param * param = (ISR_param *)CallBackRef;
+	int Motora, Motorb;
+	int servo_val;
+	float TargetA,TargetB;
+	int Velocity_Left = get_encoder_data(param->encoderL);
+	int Velocity_Right = get_encoder_data(param->encoderR);
+	if(param->target_servo_angle < -45)param->target_servo_angle = -45;
+	if(param->target_servo_angle > 45)param->target_servo_angle = 45;
+	Kinematic_Analysis(param->velocity, param->target_servo_angle,&TargetA,&TargetB,&servo_val);
+	servo_val = map_servo(servo_val);
+	Motora = Incremental_PD_A(TargetA, Velocity_Left);
+	Motorb = Incremental_PD_B(TargetB, Velocity_Right);
+	set_servo_pwm( param->servo,servo_val);
+	set_motor_pwm( param->motorL,Motora);
+	set_motor_pwm( param->motorR,Motorb);
+}
+static Servo servo;
+static Motor motor0,motor1;
+static Encoder encoder0,encoder1;
+static Ultrasonic_ranger ulranger;
+static XIntc intc;
+static XTmrCtr timer_10ms;
 int main()
 {
+   ISR_param param;
+   param.motorL = &motor0;
+   param.motorR = &motor1;
+   param.encoderL = &encoder0;
+   param.encoderR = &encoder1;
+   param.servo = &servo;
    int cmd;
    int16_t ax, ay, az;
    int16_t gx, gy, gz;
    int16_t mx, my, mz;
-   int val;
+   int val,val1,val2,val3;
+   interruptSetup(&intc,&timer_10ms,XPAR_TMRCTR_1_DEVICE_ID,XPAR_INTC_0_DEVICE_ID,XPAR_INTC_0_TMRCTR_1_VEC_ID,0,timer_10ms_ISR,&param);
+   makeURInstance(&ulranger,XPAR_CAR_IOP_ARDUINO_AXI_ULTRASONIC_RANGER_0_S_AXI_BASEADDR);
+   makeServoInstance(&servo,XPAR_CAR_IOP_ARDUINO_AXI_PWM_SERVO_S_AXI_BASEADDR);
+   makeEncoderInstance(&encoder0,XPAR_CAR_IOP_ARDUINO_AXI_ENCODER_0_S_AXI_BASEADDR);
+   makeEncoderInstance(&encoder1,XPAR_CAR_IOP_ARDUINO_AXI_ENCODER_1_S_AXI_BASEADDR);
+   makeMotorInstance(&motor0,0);
+   makeMotorInstance(&motor1,1);
+   init_io_switch();
+   set_motor_ctrl_mode(&motor0,FULL_BRIDGE);
+   set_motor_ctrl_mode(&motor1,FULL_BRIDGE);
    // Initialization
    device = i2c_open_device(0);
-   mpu_init();
-   motor_init();
-   servo_init();
-   encoder_init();
    // Run application
    while(1){
      // wait and store valid command
@@ -284,14 +387,36 @@ int main()
       cmd = MAILBOX_CMD_ADDR;
 
       switch(cmd){
-      	  case RESET:
-      		  mpu_reset();
-      		  motor_init();
-      		  servo_init();
-      		  encoder_init();
+      	  case INIT:
+      		  motor_init(&motor0);
+      		  motor_init(&motor1);
+      		  servo_init(&servo);
+      		  encoder_init(&encoder0);
+      		  encoder_init(&encoder1);
+      		  mpu_init();
       		  MAILBOX_CMD_ADDR = 0x0;
       		  break;
-            
+
+      	  case RESET:
+      		  mpu_reset();
+      		  param.target_servo_angle = 0;
+      		  param.velocity = 0;
+      		  motor_init(&motor0);
+      		  motor_init(&motor1);
+      		  servo_init(&servo);
+      		  encoder_init(&encoder0);
+      		  encoder_init(&encoder1);
+      		  MAILBOX_CMD_ADDR = 0x0;
+      		  break;
+
+      	  case SET_IIC_PINS:
+      		  val = MAILBOX_DATA(0);
+      		  val1 = MAILBOX_DATA(1);
+      		  set_pin(val,SDA0);
+      		  set_pin(val1,SCL0);
+      		  MAILBOX_CMD_ADDR = 0x0;
+      		  break;
+
       	  case GET_ACCL_DATA:
       		  mpu_getMotion9(&ax, &ay, &az, &gx, &gy, &gz, &mx, &my, &mz);
       		  MAILBOX_DATA(0) = (signed int)ax;
@@ -317,44 +442,67 @@ int main()
       		  break;
             
       	  case GET_ENCODER_DATA:
-      		  val = AXI_ENCODER_mReadReg(XPAR_CAR_IOP_ARDUINO_AXI_ENCODER_S_AXI_BASEADDR, AXI_ENCODER_S_AXI_SLV_REG0_OFFSET);
+      		  val = get_encoder_data(&encoder0);
+      		  val1 = get_encoder_data(&encoder1);
       		  MAILBOX_DATA(0) = val;
+      		  MAILBOX_DATA(1) = val1;
       		  MAILBOX_CMD_ADDR = 0x0;
       		  break;
             
       	  case SET_ENCODER_DIR:
       		  val = MAILBOX_DATA(0);
-      		  AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_ENCODER_S_AXI_BASEADDR, AXI_ENCODER_S_AXI_SLV_REG3_OFFSET, val);
-      		  MAILBOX_CMD_ADDR = 0x0;
-      		  break;
-            
-      	  case SET_ENCODER_SAMPLE_INTERVAL_MS:
-      		  val = MAILBOX_DATA(0);
-      		  AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_ENCODER_S_AXI_BASEADDR, AXI_ENCODER_S_AXI_SLV_REG2_OFFSET, val);
+      		  val1 = MAILBOX_DATA(1);
+      		  set_encoder_dir(&encoder0,val);
+      		  set_encoder_dir(&encoder1,val1);
       		  MAILBOX_CMD_ADDR = 0x0;
       		  break;
 
-      	  case SET_MOTOR_FREQ:
+      	  case SET_MOTOR_PINS:
       		  val = MAILBOX_DATA(0);
-      		  AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_PWM_MOTOR_S_AXI_BASEADDR, AXI_PWM_S_AXI_SLV_REG1_OFFSET, val);
+      		  val1 = MAILBOX_DATA(1);
+      	 	  val2 = MAILBOX_DATA(2);
+      		  val3 = MAILBOX_DATA(3);
+      		  set_motor_pins(&motor0,val,val1);
+      		  set_motor_pins(&motor1,val2,val3);
       		  MAILBOX_CMD_ADDR = 0x0;
       		  break;
 
-      	  case SET_MOTOR_PWM:
+      	  case SET_VELOCITY:
       		  val = MAILBOX_DATA(0);
-      		  AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_PWM_MOTOR_S_AXI_BASEADDR, AXI_PWM_S_AXI_SLV_REG0_OFFSET, val);
+      		  param.velocity = val;
       		  MAILBOX_CMD_ADDR = 0x0;
       		  break;
 
       	  case SET_MOTOR_DIR:
       		  val = MAILBOX_DATA(0);
-      		  AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_PWM_MOTOR_S_AXI_BASEADDR, AXI_PWM_S_AXI_SLV_REG2_OFFSET, val);
+      		  val1 = MAILBOX_DATA(1);
+      		  set_motor_dir(&motor0, val);
+      		  set_motor_dir(&motor1, val1);
       	      MAILBOX_CMD_ADDR = 0x0;
       	      break;
 
-      	  case SET_SERVO_PWM:
+      	  case SET_SERVO_ANGLE:
+      		  param.target_servo_angle = MAILBOX_DATA_FLOAT(0);
+      	      MAILBOX_CMD_ADDR = 0x0;
+      	      break;
+
+      	  case SET_SERVO_PIN:
+      		  val = MAILBOX_DATA(0);
+      		  set_servo_pin(&servo, val);
+      		  MAILBOX_CMD_ADDR = 0x0;
+      		  break;
+
+      	  case GET_ULRANGER_DATA:
+      		  val = get_ulranger_data(&ulranger);
+      		  MAILBOX_DATA(0) = val;
+      		  MAILBOX_CMD_ADDR = 0x0;
+      		  break;
+
+      	  case SET_MOTOR_MODE:
       	      val = MAILBOX_DATA(0);
-      	      AXI_ENCODER_mWriteReg(XPAR_CAR_IOP_ARDUINO_AXI_PWM_SERVO_S_AXI_BASEADDR, AXI_PWM_S_AXI_SLV_REG0_OFFSET, val);
+      	      val1 = MAILBOX_DATA(1);
+      	      set_motor_ctrl_mode(&motor0,val);
+      	      set_motor_ctrl_mode(&motor1,val1);
       	      MAILBOX_CMD_ADDR = 0x0;
       	      break;
 

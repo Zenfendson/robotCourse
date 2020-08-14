@@ -5,25 +5,19 @@ from pynq.xlnk import Xlnk
 import numpy as np
 xlnk = Xlnk()
 
-BYPASS = 0
-SOBELX = 1
-SOBELY = 2
-CANNY = 3
-
 class video_proc_wrapper(DefaultHierarchy):
     def __init__(self, description, vdma=None):
-        
         super().__init__(description)
         self._dma = self.axi_dma_proc
         self._switch_front = self.axis_interconnect_front.xbar
         self._switch_back = self.axis_interconnect_back.xbar
         self._sendchannel = self._dma.sendchannel
         self._recvchannel = self._dma.recvchannel
-        self.state = BYPASS
         self.canny_low = 80
         self.canny_high = 80
         
         self.canny_core = self.Canny_accel_0
+        self.color_detect_core = self.color_detect
         self.gpio_dict = PL.gpio_dict
         if('image_process_reset' not in self.gpio_dict.keys()):
             raise ValueError("No reset pin connected or wrong pin name!")
@@ -79,11 +73,9 @@ class video_proc_wrapper(DefaultHierarchy):
     def stop(self):
         self._sendchannel.stop()
         self._recvchannel.stop()
+        self.reset()
     
     def SobelX(self,frame):
-        if self.state != SOBELX:
-            self.setSobelX()
-            self.state = SOBELX
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
@@ -92,9 +84,6 @@ class video_proc_wrapper(DefaultHierarchy):
         return res
     
     def SobelY(self,frame):
-        if self.state != SOBELY:
-            self.setSobelY()
-            self.state = SOBELY
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
@@ -103,22 +92,27 @@ class video_proc_wrapper(DefaultHierarchy):
         return res
     
     def Canny(self,frame,low_threshold,high_threshold):
-        if self.state != CANNY or (self.state == CANNY and (self.canny_low != low_threshold or self.canny_high != high_threshold)):
-            self.setCanny(low_threshold,high_threshold)
-            self.canny_low = low_threshold
-            self.canny_high = high_threshold
-            self.state = CANNY
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
         self._sendchannel.transfer(frame)
         self._recvchannel.transfer(res)
         return res
+        
+    def ColorDetect(self,frame,H_low,H_high,S_low,S_high,V_low,V_high):
+        if(frame.shape != (720,1280,4)):
+            raise ValueError("invalid frame shape!")
+        self.setColor_Detect(H_low,H_high,S_low,S_high,V_low,V_high)
+        self._sendchannel.transfer(frame)
+        while not (self.color_detect_core.read(0x38) & 0x01):
+            pass
+        posX = self.color_detect_core.read(0x28)
+        posY = self.color_detect_core.read(0x2c)
+        widthX = self.color_detect_core.read(0x30)
+        widthY = self.color_detect_core.read(0x34)
+        return posX,posY,widthX,widthY
     
     def Bypass(self,frame):
-        if self.state != BYPASS:
-            self.setBypass()
-            self.state = BYPASS
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
@@ -138,6 +132,17 @@ class video_proc_wrapper(DefaultHierarchy):
         self.canny_core.write(0x10, int(low_threshold))
         self.canny_core.write(0x18, int(high_threshold))
         self.canny_core.write(0x00, 0X81)
+        
+    def setColor_Detect(self,H_low,H_high,S_low,S_high,V_low,V_high):
+        self.switch_stream(4) 
+        self.canny_core.write(0x00, 0X00)
+        self.color_detect_core.write(0x00,0x00)
+        self.color_detect_core.write(0x10,H_high+(H_low << 8))
+        self.color_detect_core.write(0x18,S_high+(S_low << 8))
+        self.color_detect_core.write(0x20,S_high+(S_low << 8))
+        self.color_detect_core.write(0x00,0x81)
+        self.canny_core.write(0x00, 0X81)
+        
             
     
     def setBypass(self):

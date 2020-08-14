@@ -37,12 +37,10 @@ class OV5640_Driver(DefaultHierarchy):
             tmp1 = config[0] >> 8;
             tmp2 = config[0] & 0xff;
             self._sccb.send(address, bytes([tmp1, tmp2, config[1]]), length)
-        
         self._demosaic.write(0x10, 1280)
         self._demosaic.write(0x18, 720)
         self._demosaic.write(0x28, 1)
         self._demosaic.write(0x00, 0x81)
-        
         self.readchannel.mode = VideoMode(1280,720,32)
         self.switch_stream(0)
         self.readchannel.start()
