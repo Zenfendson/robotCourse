@@ -13,3 +13,7 @@ cd ..
 cd rgb2gray
 source build_hls_proj.tcl
 cd ..
+
+cd color_detect
+source build_hls_proj.tcl
+cd ..
