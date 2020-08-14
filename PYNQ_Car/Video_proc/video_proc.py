@@ -96,7 +96,7 @@ class video_proc_wrapper(DefaultHierarchy):
     def Canny(self,frame,low_threshold,high_threshold):
         if(frame.shape != (720,1280,4)):
             raise ValueError("invalid frame shape!")
-        self.setCanny()
+        self.setCanny(low_threshold,high_threshold)
         res = xlnk.cma_array((720,1280,4),dtype = np.uint8)
         self._sendchannel.transfer(frame)
         self._recvchannel.transfer(res)
