@@ -43,10 +43,9 @@ if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
 
 set list_projs [get_projects -quiet]
 if { $list_projs eq "" } {
-   create_project Car Car -part xc7z020clg400-1
+   create_project project_1 myproj -part xc7z020clg400-1
    set_property BOARD_PART tul.com.tw:pynq-z2:part0:1.0 [current_project]
 }
-
 set_property  ip_repo_paths ./ip [current_project]
 update_ip_catalog
 
@@ -54,6 +53,7 @@ add_files -fileset constrs_1 -norecurse ./cv_ov5640.xdc
 import_files -fileset constrs_1 ./cv_ov5640.xdc
 add_files -fileset constrs_1 -norecurse ./pynq-z2_v1.0.xdc
 import_files -fileset constrs_1 ./pynq-z2_v1.0.xdc
+
 
 # CHANGE DESIGN NAME HERE
 variable design_name
@@ -142,24 +142,33 @@ xilinx.com:ip:util_vector_logic:2.0\
 xilinx.com:user:AXI_Encoder:1.0\
 xilinx.com:user:AXI_PWM:1.0\
 xilinx.com:user:AXI_ultrasonic_ranger:1.0\
+xilinx.com:user:analog2digital:1.0\
+xilinx.com:ip:axi_gpio:2.0\
 xilinx.com:ip:axi_iic:2.0\
 xilinx.com:user:dff_en_reset_vector:1.0\
-xilinx.com:ip:axi_gpio:2.0\
+xilinx.com:user:io_switch:1.1\
 xilinx.com:ip:xlconstant:1.1\
 xilinx.com:ip:microblaze:11.0\
 xilinx.com:ip:axi_bram_ctrl:4.1\
+xilinx.com:ip:xadc_wiz:3.3\
 xilinx.com:hls:Canny_accel:1.0\
 xilinx.com:hls:SobelX_accel:1.0\
 xilinx.com:hls:SobelY_accel:1.0\
 xilinx.com:ip:axi_dma:7.1\
 xilinx.com:ip:axis_subset_converter:1.1\
+xilinx.com:hls:color_detect:1.0\
 xilinx.com:ip:v_demosaic:1.0\
 xilinx.com:ip:axi_vdma:6.3\
 xilinx.com:hls:rgb2gray:1.0\
 xilinx.com:ip:v_vid_in_axi4s:4.0\
+xilinx.com:ip:clk_wiz:6.0\
+digilentinc.com:ip:rgb2dvi:1.2\
+xilinx.com:ip:v_axi4s_vid_out:4.0\
+xilinx.com:ip:v_tc:6.1\
 xilinx.com:ip:lmb_bram_if_cntlr:4.0\
 xilinx.com:ip:lmb_v10:3.0\
 xilinx.com:ip:blk_mem_gen:8.4\
+xilinx.com:user:axi_motor_ctrl_sel:1.0\
 xilinx.com:ip:axi_timer:2.0\
 "
 
@@ -260,6 +269,144 @@ proc create_hier_cell_timer_subsystem { parentCell nameHier } {
   current_bd_instance $oldCurInst
 }
 
+# Hierarchical cell: motor_driver_1
+proc create_hier_cell_motor_driver_1 { parentCell nameHier } {
+
+  variable script_folder
+
+  if { $parentCell eq "" || $nameHier eq "" } {
+     catch {common::send_msg_id "BD_TCL-102" "ERROR" "create_hier_cell_motor_driver_1() - Empty argument(s)!"}
+     return
+  }
+
+  # Get object for parentCell
+  set parentObj [get_bd_cells $parentCell]
+  if { $parentObj == "" } {
+     catch {common::send_msg_id "BD_TCL-100" "ERROR" "Unable to find parent cell <$parentCell>!"}
+     return
+  }
+
+  # Make sure parentObj is hier blk
+  set parentType [get_property TYPE $parentObj]
+  if { $parentType ne "hier" } {
+     catch {common::send_msg_id "BD_TCL-101" "ERROR" "Parent <$parentObj> has TYPE = <$parentType>. Expected to be <hier>."}
+     return
+  }
+
+  # Save current instance; Restore later
+  set oldCurInst [current_bd_instance .]
+
+  # Set parent object as current
+  current_bd_instance $parentObj
+
+  # Create cell and set as current instance
+  set hier_obj [create_bd_cell -type hier $nameHier]
+  current_bd_instance $hier_obj
+
+  # Create interface pins
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI
+
+  # Create pins
+  create_bd_pin -dir I -type clk Clk
+  create_bd_pin -dir O out1
+  create_bd_pin -dir O out2
+  create_bd_pin -dir I -type rst peripheral_aresetn
+
+  # Create instance: AXI_PWM_Motor, and set properties
+  set AXI_PWM_Motor [ create_bd_cell -type ip -vlnv xilinx.com:user:AXI_PWM:1.0 AXI_PWM_Motor ]
+
+  # Create instance: axi_interconnect, and set properties
+  set axi_interconnect [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect ]
+
+  # Create instance: axi_motor_ctrl_sel_0, and set properties
+  set axi_motor_ctrl_sel_0 [ create_bd_cell -type ip -vlnv xilinx.com:user:axi_motor_ctrl_sel:1.0 axi_motor_ctrl_sel_0 ]
+
+  # Create interface connections
+  connect_bd_intf_net -intf_net S_AXI_1 [get_bd_intf_pins S_AXI] [get_bd_intf_pins axi_interconnect/S00_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M00_AXI [get_bd_intf_pins AXI_PWM_Motor/S_AXI] [get_bd_intf_pins axi_interconnect/M00_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M01_AXI [get_bd_intf_pins axi_interconnect/M01_AXI] [get_bd_intf_pins axi_motor_ctrl_sel_0/S_AXI]
+
+  # Create port connections
+  connect_bd_net -net AXI_PWM_Motor_PWM [get_bd_pins AXI_PWM_Motor/PWM] [get_bd_pins axi_motor_ctrl_sel_0/PWM]
+  connect_bd_net -net AXI_PWM_Motor_dir [get_bd_pins AXI_PWM_Motor/dir] [get_bd_pins axi_motor_ctrl_sel_0/dir]
+  connect_bd_net -net Clk_1 [get_bd_pins Clk] [get_bd_pins AXI_PWM_Motor/s_axi_aclk] [get_bd_pins axi_interconnect/ACLK] [get_bd_pins axi_interconnect/M00_ACLK] [get_bd_pins axi_interconnect/M01_ACLK] [get_bd_pins axi_interconnect/S00_ACLK] [get_bd_pins axi_motor_ctrl_sel_0/s_axi_aclk]
+  connect_bd_net -net axi_motor_ctrl_sel_0_out1 [get_bd_pins out1] [get_bd_pins axi_motor_ctrl_sel_0/out1]
+  connect_bd_net -net axi_motor_ctrl_sel_0_out2 [get_bd_pins out2] [get_bd_pins axi_motor_ctrl_sel_0/out2]
+  connect_bd_net -net peripheral_aresetn_1 [get_bd_pins peripheral_aresetn] [get_bd_pins AXI_PWM_Motor/s_axi_aresetn] [get_bd_pins axi_interconnect/ARESETN] [get_bd_pins axi_interconnect/M00_ARESETN] [get_bd_pins axi_interconnect/M01_ARESETN] [get_bd_pins axi_interconnect/S00_ARESETN] [get_bd_pins axi_motor_ctrl_sel_0/s_axi_aresetn]
+
+  # Restore current instance
+  current_bd_instance $oldCurInst
+}
+
+# Hierarchical cell: motor_driver_0
+proc create_hier_cell_motor_driver_0 { parentCell nameHier } {
+
+  variable script_folder
+
+  if { $parentCell eq "" || $nameHier eq "" } {
+     catch {common::send_msg_id "BD_TCL-102" "ERROR" "create_hier_cell_motor_driver_0() - Empty argument(s)!"}
+     return
+  }
+
+  # Get object for parentCell
+  set parentObj [get_bd_cells $parentCell]
+  if { $parentObj == "" } {
+     catch {common::send_msg_id "BD_TCL-100" "ERROR" "Unable to find parent cell <$parentCell>!"}
+     return
+  }
+
+  # Make sure parentObj is hier blk
+  set parentType [get_property TYPE $parentObj]
+  if { $parentType ne "hier" } {
+     catch {common::send_msg_id "BD_TCL-101" "ERROR" "Parent <$parentObj> has TYPE = <$parentType>. Expected to be <hier>."}
+     return
+  }
+
+  # Save current instance; Restore later
+  set oldCurInst [current_bd_instance .]
+
+  # Set parent object as current
+  current_bd_instance $parentObj
+
+  # Create cell and set as current instance
+  set hier_obj [create_bd_cell -type hier $nameHier]
+  current_bd_instance $hier_obj
+
+  # Create interface pins
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI
+
+  # Create pins
+  create_bd_pin -dir I -type clk Clk
+  create_bd_pin -dir O out1
+  create_bd_pin -dir O out2
+  create_bd_pin -dir I -type rst peripheral_aresetn
+
+  # Create instance: AXI_PWM_Motor, and set properties
+  set AXI_PWM_Motor [ create_bd_cell -type ip -vlnv xilinx.com:user:AXI_PWM:1.0 AXI_PWM_Motor ]
+
+  # Create instance: axi_interconnect, and set properties
+  set axi_interconnect [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect ]
+
+  # Create instance: axi_motor_ctrl_sel_0, and set properties
+  set axi_motor_ctrl_sel_0 [ create_bd_cell -type ip -vlnv xilinx.com:user:axi_motor_ctrl_sel:1.0 axi_motor_ctrl_sel_0 ]
+
+  # Create interface connections
+  connect_bd_intf_net -intf_net S_AXI_1 [get_bd_intf_pins S_AXI] [get_bd_intf_pins axi_interconnect/S00_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M00_AXI [get_bd_intf_pins AXI_PWM_Motor/S_AXI] [get_bd_intf_pins axi_interconnect/M00_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M01_AXI [get_bd_intf_pins axi_interconnect/M01_AXI] [get_bd_intf_pins axi_motor_ctrl_sel_0/S_AXI]
+
+  # Create port connections
+  connect_bd_net -net AXI_PWM_Motor_PWM [get_bd_pins AXI_PWM_Motor/PWM] [get_bd_pins axi_motor_ctrl_sel_0/PWM]
+  connect_bd_net -net AXI_PWM_Motor_dir [get_bd_pins AXI_PWM_Motor/dir] [get_bd_pins axi_motor_ctrl_sel_0/dir]
+  connect_bd_net -net Clk_1 [get_bd_pins Clk] [get_bd_pins AXI_PWM_Motor/s_axi_aclk] [get_bd_pins axi_interconnect/ACLK] [get_bd_pins axi_interconnect/M00_ACLK] [get_bd_pins axi_interconnect/M01_ACLK] [get_bd_pins axi_interconnect/S00_ACLK] [get_bd_pins axi_motor_ctrl_sel_0/s_axi_aclk]
+  connect_bd_net -net axi_motor_ctrl_sel_0_out1 [get_bd_pins out1] [get_bd_pins axi_motor_ctrl_sel_0/out1]
+  connect_bd_net -net axi_motor_ctrl_sel_0_out2 [get_bd_pins out2] [get_bd_pins axi_motor_ctrl_sel_0/out2]
+  connect_bd_net -net peripheral_aresetn_1 [get_bd_pins peripheral_aresetn] [get_bd_pins AXI_PWM_Motor/s_axi_aresetn] [get_bd_pins axi_interconnect/ARESETN] [get_bd_pins axi_interconnect/M00_ARESETN] [get_bd_pins axi_interconnect/M01_ARESETN] [get_bd_pins axi_interconnect/S00_ARESETN] [get_bd_pins axi_motor_ctrl_sel_0/s_axi_aresetn]
+
+  # Restore current instance
+  current_bd_instance $oldCurInst
+}
+
 # Hierarchical cell: microblaze_0_local_memory
 proc create_hier_cell_microblaze_0_local_memory { parentCell nameHier } {
 
@@ -339,6 +486,150 @@ proc create_hier_cell_microblaze_0_local_memory { parentCell nameHier } {
   current_bd_instance $oldCurInst
 }
 
+# Hierarchical cell: video_output
+proc create_hier_cell_video_output { parentCell nameHier } {
+
+  variable script_folder
+
+  if { $parentCell eq "" || $nameHier eq "" } {
+     catch {common::send_msg_id "BD_TCL-102" "ERROR" "create_hier_cell_video_output() - Empty argument(s)!"}
+     return
+  }
+
+  # Get object for parentCell
+  set parentObj [get_bd_cells $parentCell]
+  if { $parentObj == "" } {
+     catch {common::send_msg_id "BD_TCL-100" "ERROR" "Unable to find parent cell <$parentCell>!"}
+     return
+  }
+
+  # Make sure parentObj is hier blk
+  set parentType [get_property TYPE $parentObj]
+  if { $parentType ne "hier" } {
+     catch {common::send_msg_id "BD_TCL-101" "ERROR" "Parent <$parentObj> has TYPE = <$parentType>. Expected to be <hier>."}
+     return
+  }
+
+  # Save current instance; Restore later
+  set oldCurInst [current_bd_instance .]
+
+  # Set parent object as current
+  current_bd_instance $parentObj
+
+  # Create cell and set as current instance
+  set hier_obj [create_bd_cell -type hier $nameHier]
+  current_bd_instance $hier_obj
+
+  # Create interface pins
+  create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 M_AXI_MM2S
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI_LITE
+  create_bd_intf_pin -mode Master -vlnv digilentinc.com:interface:tmds_rtl:1.0 TMDS_0
+
+  # Create pins
+  create_bd_pin -dir I -type rst axi_resetn
+  create_bd_pin -dir I -type clk clk_100m
+  create_bd_pin -dir O -type intr mm2s_introut
+
+  # Create instance: RGBA2GBR, and set properties
+  set RGBA2GBR [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_subset_converter:1.1 RGBA2GBR ]
+  set_property -dict [ list \
+   CONFIG.M_TDATA_NUM_BYTES {3} \
+   CONFIG.S_TDATA_NUM_BYTES {4} \
+   CONFIG.TDATA_REMAP {tdata[7:0],tdata[23:8]} \
+ ] $RGBA2GBR
+
+  # Create instance: axi_vdma, and set properties
+  set axi_vdma [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_vdma:6.3 axi_vdma ]
+  set_property -dict [ list \
+   CONFIG.c_include_s2mm {0} \
+   CONFIG.c_m_axi_mm2s_data_width {32} \
+   CONFIG.c_mm2s_genlock_mode {1} \
+   CONFIG.c_mm2s_max_burst_length {16} \
+   CONFIG.c_num_fstores {4} \
+   CONFIG.c_s2mm_genlock_mode {0} \
+ ] $axi_vdma
+
+  # Create instance: clk_wiz_0, and set properties
+  set clk_wiz_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0 ]
+  set_property -dict [ list \
+   CONFIG.CLKOUT1_DRIVES {BUFG} \
+   CONFIG.CLKOUT1_JITTER {337.616} \
+   CONFIG.CLKOUT1_PHASE_ERROR {322.999} \
+   CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {74.25} \
+   CONFIG.CLKOUT2_DRIVES {BUFG} \
+   CONFIG.CLKOUT2_JITTER {258.703} \
+   CONFIG.CLKOUT2_PHASE_ERROR {322.999} \
+   CONFIG.CLKOUT2_REQUESTED_OUT_FREQ {371.25} \
+   CONFIG.CLKOUT2_USED {true} \
+   CONFIG.CLKOUT3_DRIVES {BUFG} \
+   CONFIG.CLKOUT4_DRIVES {BUFG} \
+   CONFIG.CLKOUT5_DRIVES {BUFG} \
+   CONFIG.CLKOUT6_DRIVES {BUFG} \
+   CONFIG.CLKOUT7_DRIVES {BUFG} \
+   CONFIG.CLK_OUT1_PORT {pclk} \
+   CONFIG.CLK_OUT2_PORT {sclk} \
+   CONFIG.FEEDBACK_SOURCE {FDBK_AUTO} \
+   CONFIG.MMCM_CLKFBOUT_MULT_F {37.125} \
+   CONFIG.MMCM_CLKOUT0_DIVIDE_F {10.000} \
+   CONFIG.MMCM_CLKOUT1_DIVIDE {2} \
+   CONFIG.MMCM_COMPENSATION {ZHOLD} \
+   CONFIG.MMCM_DIVCLK_DIVIDE {5} \
+   CONFIG.NUM_OUT_CLKS {2} \
+   CONFIG.PRIMITIVE {MMCM} \
+   CONFIG.PRIM_IN_FREQ {100.000} \
+   CONFIG.PRIM_SOURCE {Single_ended_clock_capable_pin} \
+   CONFIG.USE_LOCKED {true} \
+   CONFIG.USE_RESET {false} \
+ ] $clk_wiz_0
+
+  # Create instance: rgb2dvi, and set properties
+  set rgb2dvi [ create_bd_cell -type ip -vlnv digilentinc.com:ip:rgb2dvi:1.2 rgb2dvi ]
+  set_property -dict [ list \
+   CONFIG.kGenerateSerialClk {false} \
+   CONFIG.kRstActiveHigh {false} \
+ ] $rgb2dvi
+
+  # Create instance: v_axi4s_vid_out_0, and set properties
+  set v_axi4s_vid_out_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:v_axi4s_vid_out:4.0 v_axi4s_vid_out_0 ]
+  set_property -dict [ list \
+   CONFIG.C_ADDR_WIDTH {11} \
+   CONFIG.C_HAS_ASYNC_CLK {0} \
+   CONFIG.C_HYSTERESIS_LEVEL {1024} \
+   CONFIG.C_S_AXIS_VIDEO_DATA_WIDTH {8} \
+   CONFIG.C_S_AXIS_VIDEO_FORMAT {2} \
+   CONFIG.C_VTG_MASTER_SLAVE {1} \
+ ] $v_axi4s_vid_out_0
+
+  # Create instance: v_tc_0, and set properties
+  set v_tc_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:v_tc:6.1 v_tc_0 ]
+  set_property -dict [ list \
+   CONFIG.HAS_AXI4_LITE {false} \
+   CONFIG.enable_detection {false} \
+   CONFIG.enable_generation {true} \
+ ] $v_tc_0
+
+  # Create interface connections
+  connect_bd_intf_net -intf_net Conn1 [get_bd_intf_pins TMDS_0] [get_bd_intf_pins rgb2dvi/TMDS]
+  connect_bd_intf_net -intf_net Conn2 [get_bd_intf_pins S_AXI_LITE] [get_bd_intf_pins axi_vdma/S_AXI_LITE]
+  connect_bd_intf_net -intf_net Conn3 [get_bd_intf_pins M_AXI_MM2S] [get_bd_intf_pins axi_vdma/M_AXI_MM2S]
+  connect_bd_intf_net -intf_net axi_vdma_0_M_AXIS_MM2S [get_bd_intf_pins RGBA2GBR/S_AXIS] [get_bd_intf_pins axi_vdma/M_AXIS_MM2S]
+  connect_bd_intf_net -intf_net axis_subset_converter_0_M_AXIS [get_bd_intf_pins RGBA2GBR/M_AXIS] [get_bd_intf_pins v_axi4s_vid_out_0/video_in]
+  connect_bd_intf_net -intf_net v_axi4s_vid_out_0_vid_io_out [get_bd_intf_pins rgb2dvi/RGB] [get_bd_intf_pins v_axi4s_vid_out_0/vid_io_out]
+  connect_bd_intf_net -intf_net v_tc_0_vtiming_out [get_bd_intf_pins v_axi4s_vid_out_0/vtiming_in] [get_bd_intf_pins v_tc_0/vtiming_out]
+
+  # Create port connections
+  connect_bd_net -net Net [get_bd_pins clk_100m] [get_bd_pins axi_vdma/m_axi_mm2s_aclk] [get_bd_pins axi_vdma/s_axi_lite_aclk] [get_bd_pins clk_wiz_0/clk_in1]
+  connect_bd_net -net axi_resetn_1 [get_bd_pins axi_resetn] [get_bd_pins axi_vdma/axi_resetn]
+  connect_bd_net -net axi_vdma_mm2s_introut [get_bd_pins mm2s_introut] [get_bd_pins axi_vdma/mm2s_introut]
+  connect_bd_net -net clk_wiz_0_locked [get_bd_pins RGBA2GBR/aresetn] [get_bd_pins clk_wiz_0/locked] [get_bd_pins rgb2dvi/aRst_n] [get_bd_pins v_axi4s_vid_out_0/aresetn] [get_bd_pins v_tc_0/resetn]
+  connect_bd_net -net clk_wiz_0_pclk [get_bd_pins RGBA2GBR/aclk] [get_bd_pins axi_vdma/m_axis_mm2s_aclk] [get_bd_pins clk_wiz_0/pclk] [get_bd_pins rgb2dvi/PixelClk] [get_bd_pins v_axi4s_vid_out_0/aclk] [get_bd_pins v_tc_0/clk]
+  connect_bd_net -net clk_wiz_0_sclk [get_bd_pins clk_wiz_0/sclk] [get_bd_pins rgb2dvi/SerialClk]
+  connect_bd_net -net v_axi4s_vid_out_0_vtg_ce [get_bd_pins v_axi4s_vid_out_0/vtg_ce] [get_bd_pins v_tc_0/gen_clken]
+
+  # Restore current instance
+  current_bd_instance $oldCurInst
+}
+
 # Hierarchical cell: ov5640_driver_wrapper
 proc create_hier_cell_ov5640_driver_wrapper { parentCell nameHier } {
 
@@ -381,7 +672,6 @@ proc create_hier_cell_ov5640_driver_wrapper { parentCell nameHier } {
   # Create pins
   create_bd_pin -dir I -type clk ACLK
   create_bd_pin -dir I -type rst ARESETN
-  create_bd_pin -dir I -from 0 -to 0 -type rst S_AXI_CTRL_ARESETN
   create_bd_pin -dir O -type intr iic2intc_irpt
   create_bd_pin -dir O -type intr s2mm_introut
   create_bd_pin -dir I -from 7 -to 0 vid_data
@@ -409,6 +699,7 @@ proc create_hier_cell_ov5640_driver_wrapper { parentCell nameHier } {
    CONFIG.c_m_axis_mm2s_tdata_width {32} \
    CONFIG.c_mm2s_genlock_mode {0} \
    CONFIG.c_num_fstores {4} \
+   CONFIG.c_s2mm_genlock_mode {0} \
    CONFIG.c_s2mm_linebuffer_depth {1024} \
  ] $axi_vdma_cam
 
@@ -543,9 +834,8 @@ proc create_hier_cell_ov5640_driver_wrapper { parentCell nameHier } {
   connect_bd_intf_net -intf_net v_vid_in_axi4s_0_video_out [get_bd_intf_pins a0_demosaic/s_axis_video] [get_bd_intf_pins v_vid_in_axi4s_0/video_out]
 
   # Create port connections
-  connect_bd_net -net S_AXI_CTRL_ARESETN_1 [get_bd_pins S_AXI_CTRL_ARESETN] [get_bd_pins axis_interconnect_front/S_AXI_CTRL_ARESETN]
   connect_bd_net -net ap_clk_1 [get_bd_pins ACLK] [get_bd_pins a0_demosaic/ap_clk] [get_bd_pins axi_interconnect_0/ACLK] [get_bd_pins axi_interconnect_0/M00_ACLK] [get_bd_pins axi_interconnect_0/M01_ACLK] [get_bd_pins axi_interconnect_0/M02_ACLK] [get_bd_pins axi_interconnect_0/M03_ACLK] [get_bd_pins axi_interconnect_0/M04_ACLK] [get_bd_pins axi_interconnect_0/S00_ACLK] [get_bd_pins axi_sccb/s_axi_aclk] [get_bd_pins axi_vdma_cam/m_axi_s2mm_aclk] [get_bd_pins axi_vdma_cam/s_axi_lite_aclk] [get_bd_pins axi_vdma_cam/s_axis_s2mm_aclk] [get_bd_pins axis_interconnect_back/ACLK] [get_bd_pins axis_interconnect_back/M00_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S00_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S01_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S_AXI_CTRL_ACLK] [get_bd_pins axis_interconnect_front/ACLK] [get_bd_pins axis_interconnect_front/M00_AXIS_ACLK] [get_bd_pins axis_interconnect_front/M01_AXIS_ACLK] [get_bd_pins axis_interconnect_front/S00_AXIS_ACLK] [get_bd_pins axis_interconnect_front/S_AXI_CTRL_ACLK] [get_bd_pins gbr2rgb/aclk] [get_bd_pins gbr2rgba/aclk] [get_bd_pins rgb2gray_0/ap_clk] [get_bd_pins subset_cvt/aclk] [get_bd_pins v_vid_in_axi4s_0/aclk]
-  connect_bd_net -net ap_rst_n_1 [get_bd_pins ARESETN] [get_bd_pins a0_demosaic/ap_rst_n] [get_bd_pins axi_interconnect_0/ARESETN] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/M03_ARESETN] [get_bd_pins axi_interconnect_0/M04_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN] [get_bd_pins axi_sccb/s_axi_aresetn] [get_bd_pins axi_vdma_cam/axi_resetn] [get_bd_pins axis_interconnect_back/ARESETN] [get_bd_pins axis_interconnect_back/M00_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S00_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S01_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S_AXI_CTRL_ARESETN] [get_bd_pins axis_interconnect_front/ARESETN] [get_bd_pins axis_interconnect_front/M00_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/M01_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/S00_AXIS_ARESETN] [get_bd_pins gbr2rgb/aresetn] [get_bd_pins gbr2rgba/aresetn] [get_bd_pins rgb2gray_0/ap_rst_n] [get_bd_pins subset_cvt/aresetn] [get_bd_pins v_vid_in_axi4s_0/aresetn]
+  connect_bd_net -net ap_rst_n_1 [get_bd_pins ARESETN] [get_bd_pins a0_demosaic/ap_rst_n] [get_bd_pins axi_interconnect_0/ARESETN] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/M03_ARESETN] [get_bd_pins axi_interconnect_0/M04_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN] [get_bd_pins axi_sccb/s_axi_aresetn] [get_bd_pins axi_vdma_cam/axi_resetn] [get_bd_pins axis_interconnect_back/ARESETN] [get_bd_pins axis_interconnect_back/M00_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S00_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S01_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S_AXI_CTRL_ARESETN] [get_bd_pins axis_interconnect_front/ARESETN] [get_bd_pins axis_interconnect_front/M00_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/M01_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/S00_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/S_AXI_CTRL_ARESETN] [get_bd_pins gbr2rgb/aresetn] [get_bd_pins gbr2rgba/aresetn] [get_bd_pins rgb2gray_0/ap_rst_n] [get_bd_pins subset_cvt/aresetn] [get_bd_pins v_vid_in_axi4s_0/aresetn]
   connect_bd_net -net axi_sccb_iic2intc_irpt [get_bd_pins iic2intc_irpt] [get_bd_pins axi_sccb/iic2intc_irpt]
   connect_bd_net -net axi_vdma_cam_s2mm_introut [get_bd_pins s2mm_introut] [get_bd_pins axi_vdma_cam/s2mm_introut]
   connect_bd_net -net axis_enable_1 [get_bd_pins logic1/dout] [get_bd_pins v_vid_in_axi4s_0/aclken] [get_bd_pins v_vid_in_axi4s_0/axis_enable]
@@ -599,6 +889,7 @@ proc create_hier_cell_image_processing { parentCell nameHier } {
   create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S00_AXI
 
   # Create pins
+  create_bd_pin -dir I -type rst M04_ARESETN
   create_bd_pin -dir I -type clk ap_clk
   create_bd_pin -dir I -type rst aux_reset_in
   create_bd_pin -dir O -type intr mm2s_introut
@@ -626,7 +917,7 @@ proc create_hier_cell_image_processing { parentCell nameHier } {
   # Create instance: axi_interconnect_0, and set properties
   set axi_interconnect_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0 ]
   set_property -dict [ list \
-   CONFIG.NUM_MI {4} \
+   CONFIG.NUM_MI {5} \
  ] $axi_interconnect_0
 
   # Create instance: axis_interconnect_back, and set properties
@@ -640,7 +931,7 @@ proc create_hier_cell_image_processing { parentCell nameHier } {
   # Create instance: axis_interconnect_front, and set properties
   set axis_interconnect_front [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_interconnect:2.1 axis_interconnect_front ]
   set_property -dict [ list \
-   CONFIG.NUM_MI {4} \
+   CONFIG.NUM_MI {5} \
    CONFIG.ROUTING_MODE {1} \
  ] $axis_interconnect_front
 
@@ -806,6 +1097,18 @@ proc create_hier_cell_image_processing { parentCell nameHier } {
    CONFIG.TUSER_REMAP {1'b0} \
  ] $axis_subset_converter_5
 
+  # Create instance: axis_subset_converter_6, and set properties
+  set axis_subset_converter_6 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_subset_converter:1.1 axis_subset_converter_6 ]
+  set_property -dict [ list \
+   CONFIG.M_TDATA_NUM_BYTES {3} \
+   CONFIG.S_TDATA_NUM_BYTES {4} \
+   CONFIG.TDATA_REMAP {tdata[23:0]} \
+   CONFIG.TKEEP_REMAP {tkeep[2:0]} \
+ ] $axis_subset_converter_6
+
+  # Create instance: color_detect, and set properties
+  set color_detect [ create_bd_cell -type ip -vlnv xilinx.com:hls:color_detect:1.0 color_detect ]
+
   # Create instance: logic_1, and set properties
   set logic_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 logic_1 ]
 
@@ -834,25 +1137,29 @@ proc create_hier_cell_image_processing { parentCell nameHier } {
   connect_bd_intf_net -intf_net axi_interconnect_0_M01_AXI [get_bd_intf_pins axi_interconnect_0/M01_AXI] [get_bd_intf_pins axis_interconnect_front/S_AXI_CTRL]
   connect_bd_intf_net -intf_net axi_interconnect_0_M02_AXI [get_bd_intf_pins axi_interconnect_0/M02_AXI] [get_bd_intf_pins axis_interconnect_back/S_AXI_CTRL]
   connect_bd_intf_net -intf_net axi_interconnect_0_M03_AXI [get_bd_intf_pins Canny_accel_0/s_axi_AXILiteS] [get_bd_intf_pins axi_interconnect_0/M03_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M04_AXI [get_bd_intf_pins axi_interconnect_0/M04_AXI] [get_bd_intf_pins color_detect/s_axi_AXILiteS]
   connect_bd_intf_net -intf_net axis_interconnect_0_M00_AXIS [get_bd_intf_pins axis_interconnect_back/S00_AXIS] [get_bd_intf_pins axis_interconnect_front/M00_AXIS]
   connect_bd_intf_net -intf_net axis_interconnect_back_M00_AXIS [get_bd_intf_pins axi_dma_proc/S_AXIS_S2MM] [get_bd_intf_pins axis_interconnect_back/M00_AXIS]
   connect_bd_intf_net -intf_net axis_interconnect_front_M01_AXIS [get_bd_intf_pins axis_interconnect_front/M01_AXIS] [get_bd_intf_pins axis_subset_converter_0/S_AXIS]
   connect_bd_intf_net -intf_net axis_interconnect_front_M02_AXIS [get_bd_intf_pins axis_interconnect_front/M02_AXIS] [get_bd_intf_pins axis_subset_converter_2/S_AXIS]
   connect_bd_intf_net -intf_net axis_interconnect_front_M03_AXIS [get_bd_intf_pins axis_interconnect_front/M03_AXIS] [get_bd_intf_pins axis_subset_converter_4/S_AXIS]
+  connect_bd_intf_net -intf_net axis_interconnect_front_M04_AXIS [get_bd_intf_pins axis_interconnect_front/M04_AXIS] [get_bd_intf_pins axis_subset_converter_6/S_AXIS]
   connect_bd_intf_net -intf_net axis_subset_converter_0_M_AXIS [get_bd_intf_pins Canny_accel_0/in_strm] [get_bd_intf_pins axis_subset_converter_0/M_AXIS]
   connect_bd_intf_net -intf_net axis_subset_converter_1_M_AXIS [get_bd_intf_pins axis_interconnect_back/S02_AXIS] [get_bd_intf_pins axis_subset_converter_1/M_AXIS]
   connect_bd_intf_net -intf_net axis_subset_converter_2_M_AXIS [get_bd_intf_pins SobelX_accel_0/in_stream] [get_bd_intf_pins axis_subset_converter_2/M_AXIS]
   connect_bd_intf_net -intf_net axis_subset_converter_3_M_AXIS [get_bd_intf_pins axis_interconnect_back/S01_AXIS] [get_bd_intf_pins axis_subset_converter_3/M_AXIS]
   connect_bd_intf_net -intf_net axis_subset_converter_4_M_AXIS [get_bd_intf_pins SobelY_accel_0/in_stream] [get_bd_intf_pins axis_subset_converter_4/M_AXIS]
+  connect_bd_intf_net -intf_net axis_subset_converter_6_M_AXIS [get_bd_intf_pins axis_subset_converter_6/M_AXIS] [get_bd_intf_pins color_detect/strm_in]
 
   # Create port connections
-  connect_bd_net -net ap_clk_1 [get_bd_pins ap_clk] [get_bd_pins Canny_accel_0/ap_clk] [get_bd_pins SobelX_accel_0/ap_clk] [get_bd_pins SobelY_accel_0/ap_clk] [get_bd_pins axi_dma_proc/m_axi_mm2s_aclk] [get_bd_pins axi_dma_proc/m_axi_s2mm_aclk] [get_bd_pins axi_dma_proc/s_axi_lite_aclk] [get_bd_pins axi_interconnect_0/ACLK] [get_bd_pins axi_interconnect_0/M00_ACLK] [get_bd_pins axi_interconnect_0/M01_ACLK] [get_bd_pins axi_interconnect_0/M02_ACLK] [get_bd_pins axi_interconnect_0/M03_ACLK] [get_bd_pins axi_interconnect_0/S00_ACLK] [get_bd_pins axis_interconnect_back/ACLK] [get_bd_pins axis_interconnect_back/M00_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S00_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S01_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S02_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S03_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S_AXI_CTRL_ACLK] [get_bd_pins axis_interconnect_front/ACLK] [get_bd_pins axis_interconnect_front/M00_AXIS_ACLK] [get_bd_pins axis_interconnect_front/M01_AXIS_ACLK] [get_bd_pins axis_interconnect_front/M02_AXIS_ACLK] [get_bd_pins axis_interconnect_front/M03_AXIS_ACLK] [get_bd_pins axis_interconnect_front/S00_AXIS_ACLK] [get_bd_pins axis_interconnect_front/S_AXI_CTRL_ACLK] [get_bd_pins axis_subset_converter_0/aclk] [get_bd_pins axis_subset_converter_1/aclk] [get_bd_pins axis_subset_converter_2/aclk] [get_bd_pins axis_subset_converter_3/aclk] [get_bd_pins axis_subset_converter_4/aclk] [get_bd_pins axis_subset_converter_5/aclk] [get_bd_pins proc_sys_reset_0/slowest_sync_clk]
+  connect_bd_net -net M04_ARESETN_1 [get_bd_pins M04_ARESETN] [get_bd_pins axi_interconnect_0/M04_ARESETN] [get_bd_pins axis_interconnect_front/M04_AXIS_ARESETN] [get_bd_pins color_detect/ap_rst_n]
+  connect_bd_net -net ap_clk_1 [get_bd_pins ap_clk] [get_bd_pins Canny_accel_0/ap_clk] [get_bd_pins SobelX_accel_0/ap_clk] [get_bd_pins SobelY_accel_0/ap_clk] [get_bd_pins axi_dma_proc/m_axi_mm2s_aclk] [get_bd_pins axi_dma_proc/m_axi_s2mm_aclk] [get_bd_pins axi_dma_proc/s_axi_lite_aclk] [get_bd_pins axi_interconnect_0/ACLK] [get_bd_pins axi_interconnect_0/M00_ACLK] [get_bd_pins axi_interconnect_0/M01_ACLK] [get_bd_pins axi_interconnect_0/M02_ACLK] [get_bd_pins axi_interconnect_0/M03_ACLK] [get_bd_pins axi_interconnect_0/M04_ACLK] [get_bd_pins axi_interconnect_0/S00_ACLK] [get_bd_pins axis_interconnect_back/ACLK] [get_bd_pins axis_interconnect_back/M00_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S00_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S01_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S02_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S03_AXIS_ACLK] [get_bd_pins axis_interconnect_back/S_AXI_CTRL_ACLK] [get_bd_pins axis_interconnect_front/ACLK] [get_bd_pins axis_interconnect_front/M00_AXIS_ACLK] [get_bd_pins axis_interconnect_front/M01_AXIS_ACLK] [get_bd_pins axis_interconnect_front/M02_AXIS_ACLK] [get_bd_pins axis_interconnect_front/M03_AXIS_ACLK] [get_bd_pins axis_interconnect_front/M04_AXIS_ACLK] [get_bd_pins axis_interconnect_front/S00_AXIS_ACLK] [get_bd_pins axis_interconnect_front/S_AXI_CTRL_ACLK] [get_bd_pins axis_subset_converter_0/aclk] [get_bd_pins axis_subset_converter_1/aclk] [get_bd_pins axis_subset_converter_2/aclk] [get_bd_pins axis_subset_converter_3/aclk] [get_bd_pins axis_subset_converter_4/aclk] [get_bd_pins axis_subset_converter_5/aclk] [get_bd_pins axis_subset_converter_6/aclk] [get_bd_pins color_detect/ap_clk] [get_bd_pins proc_sys_reset_0/slowest_sync_clk]
   connect_bd_net -net aux_reset_in_1 [get_bd_pins aux_reset_in] [get_bd_pins proc_sys_reset_0/aux_reset_in]
   connect_bd_net -net axi_dma_0_mm2s_introut [get_bd_pins mm2s_introut] [get_bd_pins axi_dma_proc/mm2s_introut]
   connect_bd_net -net axi_dma_0_s2mm_introut [get_bd_pins s2mm_introut] [get_bd_pins axi_dma_proc/s2mm_introut]
   connect_bd_net -net logic_1_dout [get_bd_pins logic_1/dout] [get_bd_pins proc_sys_reset_0/ext_reset_in]
   connect_bd_net -net proc_sys_reset_0_interconnect_aresetn [get_bd_pins axi_interconnect_0/ARESETN] [get_bd_pins axis_interconnect_back/ARESETN] [get_bd_pins axis_interconnect_front/ARESETN] [get_bd_pins proc_sys_reset_0/interconnect_aresetn]
-  connect_bd_net -net proc_sys_reset_0_peripheral_aresetn [get_bd_pins Canny_accel_0/ap_rst_n] [get_bd_pins SobelX_accel_0/ap_rst_n] [get_bd_pins SobelY_accel_0/ap_rst_n] [get_bd_pins axi_dma_proc/axi_resetn] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/M03_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN] [get_bd_pins axis_interconnect_back/M00_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S00_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S01_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S02_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S03_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S_AXI_CTRL_ARESETN] [get_bd_pins axis_interconnect_front/M00_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/M01_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/M02_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/M03_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/S00_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/S_AXI_CTRL_ARESETN] [get_bd_pins axis_subset_converter_0/aresetn] [get_bd_pins axis_subset_converter_1/aresetn] [get_bd_pins axis_subset_converter_2/aresetn] [get_bd_pins axis_subset_converter_3/aresetn] [get_bd_pins axis_subset_converter_4/aresetn] [get_bd_pins axis_subset_converter_5/aresetn] [get_bd_pins proc_sys_reset_0/peripheral_aresetn]
+  connect_bd_net -net proc_sys_reset_0_peripheral_aresetn [get_bd_pins Canny_accel_0/ap_rst_n] [get_bd_pins SobelX_accel_0/ap_rst_n] [get_bd_pins SobelY_accel_0/ap_rst_n] [get_bd_pins axi_dma_proc/axi_resetn] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/M03_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN] [get_bd_pins axis_interconnect_back/M00_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S00_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S01_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S02_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S03_AXIS_ARESETN] [get_bd_pins axis_interconnect_back/S_AXI_CTRL_ARESETN] [get_bd_pins axis_interconnect_front/M00_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/M01_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/M02_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/M03_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/S00_AXIS_ARESETN] [get_bd_pins axis_interconnect_front/S_AXI_CTRL_ARESETN] [get_bd_pins axis_subset_converter_0/aresetn] [get_bd_pins axis_subset_converter_1/aresetn] [get_bd_pins axis_subset_converter_2/aresetn] [get_bd_pins axis_subset_converter_3/aresetn] [get_bd_pins axis_subset_converter_4/aresetn] [get_bd_pins axis_subset_converter_5/aresetn] [get_bd_pins axis_subset_converter_6/aresetn] [get_bd_pins proc_sys_reset_0/peripheral_aresetn]
   connect_bd_net -net xlconstant_0_dout [get_bd_pins axis_interconnect_back/S00_ARB_REQ_SUPPRESS] [get_bd_pins axis_interconnect_back/S01_ARB_REQ_SUPPRESS] [get_bd_pins axis_interconnect_back/S02_ARB_REQ_SUPPRESS] [get_bd_pins axis_interconnect_back/S03_ARB_REQ_SUPPRESS] [get_bd_pins xlconstant_0/dout]
 
   # Restore current instance
@@ -895,31 +1202,28 @@ proc create_hier_cell_car_iop_arduino { parentCell nameHier } {
 
   # Create interface pins
   create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:mbdebug_rtl:3.0 DEBUG
-  create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:iic_rtl:1.0 IMU_IIC
-  create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 M08_AXI
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:diff_analog_io_rtl:1.0 Encoder_A0
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:diff_analog_io_rtl:1.0 Encoder_A1
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:diff_analog_io_rtl:1.0 Encoder_B0
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:diff_analog_io_rtl:1.0 Encoder_B1
   create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI_BRAM
+  create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:gpio_rtl:1.0 arduino_gpio
   create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:gpio_rtl:1.0 sig
 
   # Create pins
-  create_bd_pin -dir I A
-  create_bd_pin -dir I B
   create_bd_pin -dir I -type clk Clk
-  create_bd_pin -dir O Motor_DIR
-  create_bd_pin -dir O Motor_PWM
   create_bd_pin -dir I -type rst SYS_Rst
-  create_bd_pin -dir O Servo_PWM
   create_bd_pin -dir I -type rst aux_reset_in
   create_bd_pin -dir I intr_ack
   create_bd_pin -dir I -type rst mb_debug_sys_rst
-  create_bd_pin -dir O -from 0 -to 0 -type rst peripheral_aresetn
   create_bd_pin -dir O -from 0 -to 0 q
   create_bd_pin -dir I -type rst s_axi_bram_aresetn
 
-  # Create instance: AXI_Encoder, and set properties
-  set AXI_Encoder [ create_bd_cell -type ip -vlnv xilinx.com:user:AXI_Encoder:1.0 AXI_Encoder ]
+  # Create instance: AXI_Encoder_0, and set properties
+  set AXI_Encoder_0 [ create_bd_cell -type ip -vlnv xilinx.com:user:AXI_Encoder:1.0 AXI_Encoder_0 ]
 
-  # Create instance: AXI_PWM_Motor, and set properties
-  set AXI_PWM_Motor [ create_bd_cell -type ip -vlnv xilinx.com:user:AXI_PWM:1.0 AXI_PWM_Motor ]
+  # Create instance: AXI_Encoder_1, and set properties
+  set AXI_Encoder_1 [ create_bd_cell -type ip -vlnv xilinx.com:user:AXI_Encoder:1.0 AXI_Encoder_1 ]
 
   # Create instance: AXI_PWM_Servo, and set properties
   set AXI_PWM_Servo [ create_bd_cell -type ip -vlnv xilinx.com:user:AXI_PWM:1.0 AXI_PWM_Servo ]
@@ -930,13 +1234,22 @@ proc create_hier_cell_car_iop_arduino { parentCell nameHier } {
    CONFIG.PULSE_WIDTH_US {10} \
  ] $AXI_ultrasonic_ranger_0
 
+  # Create instance: analog2digital_0, and set properties
+  set analog2digital_0 [ create_bd_cell -type ip -vlnv xilinx.com:user:analog2digital:1.0 analog2digital_0 ]
+
+  # Create instance: arduino_gpio, and set properties
+  set arduino_gpio [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 arduino_gpio ]
+  set_property -dict [ list \
+   CONFIG.C_GPIO_WIDTH {15} \
+ ] $arduino_gpio
+
   # Create instance: axi_iic_0, and set properties
   set axi_iic_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_iic:2.0 axi_iic_0 ]
 
   # Create instance: axi_interconnect_0, and set properties
   set axi_interconnect_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0 ]
   set_property -dict [ list \
-   CONFIG.NUM_MI {10} \
+   CONFIG.NUM_MI {13} \
  ] $axi_interconnect_0
 
   # Create instance: dff_en_reset_vector_0, and set properties
@@ -952,6 +1265,16 @@ proc create_hier_cell_car_iop_arduino { parentCell nameHier } {
    CONFIG.C_GPIO_WIDTH {1} \
  ] $intr
 
+  # Create instance: io_switch, and set properties
+  set io_switch [ create_bd_cell -type ip -vlnv xilinx.com:user:io_switch:1.1 io_switch ]
+  set_property -dict [ list \
+   CONFIG.C_INTERFACE_TYPE {3} \
+   CONFIG.C_IO_SWITCH_WIDTH {15} \
+   CONFIG.C_NUM_PWMS {5} \
+   CONFIG.I2C0_Enable {true} \
+   CONFIG.PWM_Enable {true} \
+ ] $io_switch
+
   # Create instance: logic_1, and set properties
   set logic_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 logic_1 ]
 
@@ -965,10 +1288,17 @@ proc create_hier_cell_car_iop_arduino { parentCell nameHier } {
    CONFIG.C_DEBUG_ENABLED {1} \
    CONFIG.C_D_AXI {1} \
    CONFIG.C_D_LMB {1} \
+   CONFIG.C_ENABLE_DISCRETE_PORTS {0} \
    CONFIG.C_I_AXI {0} \
    CONFIG.C_I_LMB {1} \
+   CONFIG.C_USE_BARREL {0} \
    CONFIG.C_USE_DCACHE {0} \
+   CONFIG.C_USE_DIV {1} \
+   CONFIG.C_USE_FPU {1} \
+   CONFIG.C_USE_HW_MUL {1} \
    CONFIG.C_USE_ICACHE {0} \
+   CONFIG.C_USE_MMU {0} \
+   CONFIG.G_USE_EXCEPTIONS {0} \
  ] $mb
 
   # Create instance: mb_bram_ctrl, and set properties
@@ -985,6 +1315,12 @@ proc create_hier_cell_car_iop_arduino { parentCell nameHier } {
   # Create instance: microblaze_0_local_memory
   create_hier_cell_microblaze_0_local_memory $hier_obj microblaze_0_local_memory
 
+  # Create instance: motor_driver_0
+  create_hier_cell_motor_driver_0 $hier_obj motor_driver_0
+
+  # Create instance: motor_driver_1
+  create_hier_cell_motor_driver_1 $hier_obj motor_driver_1
+
   # Create instance: proc_sys_reset, and set properties
   set proc_sys_reset [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 proc_sys_reset ]
   set_property -dict [ list \
@@ -994,51 +1330,99 @@ proc create_hier_cell_car_iop_arduino { parentCell nameHier } {
   # Create instance: timer_subsystem
   create_hier_cell_timer_subsystem $hier_obj timer_subsystem
 
+  # Create instance: xadc_wiz_0, and set properties
+  set xadc_wiz_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xadc_wiz:3.3 xadc_wiz_0 ]
+  set_property -dict [ list \
+   CONFIG.CHANNEL_ENABLE_VAUXP15_VAUXN15 {true} \
+   CONFIG.CHANNEL_ENABLE_VAUXP1_VAUXN1 {true} \
+   CONFIG.CHANNEL_ENABLE_VAUXP2_VAUXN2 {false} \
+   CONFIG.CHANNEL_ENABLE_VAUXP5_VAUXN5 {false} \
+   CONFIG.CHANNEL_ENABLE_VAUXP6_VAUXN6 {true} \
+   CONFIG.CHANNEL_ENABLE_VAUXP9_VAUXN9 {true} \
+   CONFIG.CHANNEL_ENABLE_VP_VN {false} \
+   CONFIG.ENABLE_AXI4STREAM {true} \
+   CONFIG.ENABLE_RESET {false} \
+   CONFIG.ENABLE_VCCDDRO_ALARM {false} \
+   CONFIG.ENABLE_VCCPAUX_ALARM {false} \
+   CONFIG.ENABLE_VCCPINT_ALARM {false} \
+   CONFIG.EXTERNAL_MUX_CHANNEL {VP_VN} \
+   CONFIG.FIFO_DEPTH {16} \
+   CONFIG.INTERFACE_SELECTION {None} \
+   CONFIG.OT_ALARM {false} \
+   CONFIG.SEQUENCER_MODE {Continuous} \
+   CONFIG.SINGLE_CHANNEL_SELECTION {TEMPERATURE} \
+   CONFIG.USER_TEMP_ALARM {false} \
+   CONFIG.VCCAUX_ALARM {false} \
+   CONFIG.VCCINT_ALARM {false} \
+   CONFIG.XADC_STARUP_SELECTION {channel_sequencer} \
+ ] $xadc_wiz_0
+
   # Create instance: xlconcat_0, and set properties
   set xlconcat_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 xlconcat_0 ]
 
+  # Create instance: xlconcat_PWM, and set properties
+  set xlconcat_PWM [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 xlconcat_PWM ]
+  set_property -dict [ list \
+   CONFIG.NUM_PORTS {5} \
+ ] $xlconcat_PWM
+
   # Create interface connections
-  connect_bd_intf_net -intf_net Conn1 [get_bd_intf_pins IMU_IIC] [get_bd_intf_pins axi_iic_0/IIC]
+  connect_bd_intf_net -intf_net Conn1 [get_bd_intf_pins arduino_gpio] [get_bd_intf_pins io_switch/io]
   connect_bd_intf_net -intf_net Conn2 [get_bd_intf_pins S_AXI_BRAM] [get_bd_intf_pins mb_bram_ctrl/S_AXI]
   connect_bd_intf_net -intf_net Conn3 [get_bd_intf_pins sig] [get_bd_intf_pins AXI_ultrasonic_ranger_0/sig]
+  connect_bd_intf_net -intf_net Conn4 [get_bd_intf_pins Encoder_A0] [get_bd_intf_pins xadc_wiz_0/Vaux1]
+  connect_bd_intf_net -intf_net Conn5 [get_bd_intf_pins Encoder_A1] [get_bd_intf_pins xadc_wiz_0/Vaux6]
+  connect_bd_intf_net -intf_net Conn6 [get_bd_intf_pins Encoder_B0] [get_bd_intf_pins xadc_wiz_0/Vaux9]
+  connect_bd_intf_net -intf_net Conn7 [get_bd_intf_pins Encoder_B1] [get_bd_intf_pins xadc_wiz_0/Vaux15]
   connect_bd_intf_net -intf_net DEBUG_1 [get_bd_intf_pins DEBUG] [get_bd_intf_pins mb/DEBUG]
-  connect_bd_intf_net -intf_net axi_interconnect_0_M00_AXI [get_bd_intf_pins AXI_Encoder/S_AXI] [get_bd_intf_pins axi_interconnect_0/M00_AXI]
-  connect_bd_intf_net -intf_net axi_interconnect_0_M01_AXI [get_bd_intf_pins AXI_PWM_Motor/S_AXI] [get_bd_intf_pins axi_interconnect_0/M01_AXI]
+  connect_bd_intf_net -intf_net arduino_gpio_GPIO [get_bd_intf_pins arduino_gpio/GPIO] [get_bd_intf_pins io_switch/gpio]
+  connect_bd_intf_net -intf_net axi_iic_0_IIC [get_bd_intf_pins axi_iic_0/IIC] [get_bd_intf_pins io_switch/iic0]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M00_AXI [get_bd_intf_pins AXI_Encoder_0/S_AXI] [get_bd_intf_pins axi_interconnect_0/M00_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M01_AXI [get_bd_intf_pins axi_interconnect_0/M01_AXI] [get_bd_intf_pins motor_driver_0/S_AXI]
   connect_bd_intf_net -intf_net axi_interconnect_0_M02_AXI [get_bd_intf_pins AXI_PWM_Servo/S_AXI] [get_bd_intf_pins axi_interconnect_0/M02_AXI]
   connect_bd_intf_net -intf_net axi_interconnect_0_M03_AXI [get_bd_intf_pins axi_interconnect_0/M03_AXI] [get_bd_intf_pins timer_subsystem/S_AXI_timer_0]
   connect_bd_intf_net -intf_net axi_interconnect_0_M04_AXI [get_bd_intf_pins axi_interconnect_0/M04_AXI] [get_bd_intf_pins timer_subsystem/S_AXI_timer_1]
   connect_bd_intf_net -intf_net axi_interconnect_0_M05_AXI [get_bd_intf_pins axi_interconnect_0/M05_AXI] [get_bd_intf_pins mb_intc/s_axi]
   connect_bd_intf_net -intf_net axi_interconnect_0_M06_AXI [get_bd_intf_pins axi_iic_0/S_AXI] [get_bd_intf_pins axi_interconnect_0/M06_AXI]
   connect_bd_intf_net -intf_net axi_interconnect_0_M07_AXI [get_bd_intf_pins axi_interconnect_0/M07_AXI] [get_bd_intf_pins intr/S_AXI]
-  connect_bd_intf_net -intf_net axi_interconnect_0_M08_AXI [get_bd_intf_pins M08_AXI] [get_bd_intf_pins axi_interconnect_0/M08_AXI]
-  connect_bd_intf_net -intf_net axi_interconnect_0_M09_AXI [get_bd_intf_pins AXI_ultrasonic_ranger_0/S_AXI] [get_bd_intf_pins axi_interconnect_0/M09_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M08_AXI [get_bd_intf_pins AXI_ultrasonic_ranger_0/S_AXI] [get_bd_intf_pins axi_interconnect_0/M08_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M09_AXI [get_bd_intf_pins axi_interconnect_0/M09_AXI] [get_bd_intf_pins io_switch/S_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M10_AXI [get_bd_intf_pins axi_interconnect_0/M10_AXI] [get_bd_intf_pins motor_driver_1/S_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M11_AXI [get_bd_intf_pins AXI_Encoder_1/S_AXI] [get_bd_intf_pins axi_interconnect_0/M11_AXI]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M12_AXI [get_bd_intf_pins arduino_gpio/S_AXI] [get_bd_intf_pins axi_interconnect_0/M12_AXI]
   connect_bd_intf_net -intf_net mb_DLMB [get_bd_intf_pins mb/DLMB] [get_bd_intf_pins microblaze_0_local_memory/DLMB]
   connect_bd_intf_net -intf_net mb_ILMB [get_bd_intf_pins mb/ILMB] [get_bd_intf_pins microblaze_0_local_memory/ILMB]
   connect_bd_intf_net -intf_net mb_bram_ctrl_BRAM_PORTA [get_bd_intf_pins mb_bram_ctrl/BRAM_PORTA] [get_bd_intf_pins microblaze_0_local_memory/BRAM_PORTB]
   connect_bd_intf_net -intf_net mb_intc_interrupt [get_bd_intf_pins mb/INTERRUPT] [get_bd_intf_pins mb_intc/interrupt]
   connect_bd_intf_net -intf_net microblaze_0_M_AXI_DP [get_bd_intf_pins axi_interconnect_0/S00_AXI] [get_bd_intf_pins mb/M_AXI_DP]
+  connect_bd_intf_net -intf_net xadc_wiz_0_M_AXIS [get_bd_intf_pins analog2digital_0/s_axis] [get_bd_intf_pins xadc_wiz_0/M_AXIS]
 
   # Create port connections
-  connect_bd_net -net AXI_PWM_Motor_PWM [get_bd_pins Motor_PWM] [get_bd_pins AXI_PWM_Motor/PWM]
-  connect_bd_net -net AXI_PWM_Motor_dir [get_bd_pins Motor_DIR] [get_bd_pins AXI_PWM_Motor/dir]
-  connect_bd_net -net AXI_PWM_Servo_PWM [get_bd_pins Servo_PWM] [get_bd_pins AXI_PWM_Servo/PWM]
-  connect_bd_net -net A_0_1 [get_bd_pins A] [get_bd_pins AXI_Encoder/A]
-  connect_bd_net -net B_0_1 [get_bd_pins B] [get_bd_pins AXI_Encoder/B]
+  connect_bd_net -net AXI_PWM_Servo_PWM [get_bd_pins AXI_PWM_Servo/PWM] [get_bd_pins xlconcat_PWM/In0]
   connect_bd_net -net SYS_Rst_1 [get_bd_pins SYS_Rst] [get_bd_pins microblaze_0_local_memory/SYS_Rst]
+  connect_bd_net -net analog2digital_0_A0 [get_bd_pins AXI_Encoder_0/A] [get_bd_pins analog2digital_0/A0]
+  connect_bd_net -net analog2digital_0_A1 [get_bd_pins AXI_Encoder_1/A] [get_bd_pins analog2digital_0/A1]
+  connect_bd_net -net analog2digital_0_B0 [get_bd_pins AXI_Encoder_0/B] [get_bd_pins analog2digital_0/B0]
+  connect_bd_net -net analog2digital_0_B1 [get_bd_pins AXI_Encoder_1/B] [get_bd_pins analog2digital_0/B1]
   connect_bd_net -net aux_reset_in_1 [get_bd_pins aux_reset_in] [get_bd_pins proc_sys_reset/aux_reset_in]
   connect_bd_net -net axi_gpio_0_gpio_io_o [get_bd_pins dff_en_reset_vector_0/en] [get_bd_pins intr/gpio_io_o]
   connect_bd_net -net axi_iic_0_iic2intc_irpt [get_bd_pins axi_iic_0/iic2intc_irpt] [get_bd_pins xlconcat_0/In1]
   connect_bd_net -net dff_en_reset_vector_0_q [get_bd_pins q] [get_bd_pins dff_en_reset_vector_0/q]
   connect_bd_net -net logic_1_dout [get_bd_pins dff_en_reset_vector_0/d] [get_bd_pins logic_1/dout] [get_bd_pins proc_sys_reset/ext_reset_in]
   connect_bd_net -net mb_debug_sys_rst_0_1 [get_bd_pins mb_debug_sys_rst] [get_bd_pins proc_sys_reset/mb_debug_sys_rst]
-  connect_bd_net -net microblaze_0_Clk [get_bd_pins Clk] [get_bd_pins AXI_Encoder/s_axi_aclk] [get_bd_pins AXI_PWM_Motor/s_axi_aclk] [get_bd_pins AXI_PWM_Servo/s_axi_aclk] [get_bd_pins AXI_ultrasonic_ranger_0/s_axi_aclk] [get_bd_pins axi_iic_0/s_axi_aclk] [get_bd_pins axi_interconnect_0/ACLK] [get_bd_pins axi_interconnect_0/M00_ACLK] [get_bd_pins axi_interconnect_0/M01_ACLK] [get_bd_pins axi_interconnect_0/M02_ACLK] [get_bd_pins axi_interconnect_0/M03_ACLK] [get_bd_pins axi_interconnect_0/M04_ACLK] [get_bd_pins axi_interconnect_0/M05_ACLK] [get_bd_pins axi_interconnect_0/M06_ACLK] [get_bd_pins axi_interconnect_0/M07_ACLK] [get_bd_pins axi_interconnect_0/M08_ACLK] [get_bd_pins axi_interconnect_0/M09_ACLK] [get_bd_pins axi_interconnect_0/S00_ACLK] [get_bd_pins dff_en_reset_vector_0/clk] [get_bd_pins intr/s_axi_aclk] [get_bd_pins mb/Clk] [get_bd_pins mb_bram_ctrl/s_axi_aclk] [get_bd_pins mb_intc/s_axi_aclk] [get_bd_pins microblaze_0_local_memory/FCLK_CLK0] [get_bd_pins proc_sys_reset/slowest_sync_clk] [get_bd_pins timer_subsystem/Clk]
+  connect_bd_net -net microblaze_0_Clk [get_bd_pins Clk] [get_bd_pins AXI_Encoder_0/s_axi_aclk] [get_bd_pins AXI_Encoder_1/s_axi_aclk] [get_bd_pins AXI_PWM_Servo/s_axi_aclk] [get_bd_pins AXI_ultrasonic_ranger_0/s_axi_aclk] [get_bd_pins analog2digital_0/s_axis_aclk] [get_bd_pins arduino_gpio/s_axi_aclk] [get_bd_pins axi_iic_0/s_axi_aclk] [get_bd_pins axi_interconnect_0/ACLK] [get_bd_pins axi_interconnect_0/M00_ACLK] [get_bd_pins axi_interconnect_0/M01_ACLK] [get_bd_pins axi_interconnect_0/M02_ACLK] [get_bd_pins axi_interconnect_0/M03_ACLK] [get_bd_pins axi_interconnect_0/M04_ACLK] [get_bd_pins axi_interconnect_0/M05_ACLK] [get_bd_pins axi_interconnect_0/M06_ACLK] [get_bd_pins axi_interconnect_0/M07_ACLK] [get_bd_pins axi_interconnect_0/M08_ACLK] [get_bd_pins axi_interconnect_0/M09_ACLK] [get_bd_pins axi_interconnect_0/M10_ACLK] [get_bd_pins axi_interconnect_0/M11_ACLK] [get_bd_pins axi_interconnect_0/M12_ACLK] [get_bd_pins axi_interconnect_0/S00_ACLK] [get_bd_pins dff_en_reset_vector_0/clk] [get_bd_pins intr/s_axi_aclk] [get_bd_pins io_switch/s_axi_aclk] [get_bd_pins mb/Clk] [get_bd_pins mb_bram_ctrl/s_axi_aclk] [get_bd_pins mb_intc/s_axi_aclk] [get_bd_pins microblaze_0_local_memory/FCLK_CLK0] [get_bd_pins motor_driver_0/Clk] [get_bd_pins motor_driver_1/Clk] [get_bd_pins proc_sys_reset/slowest_sync_clk] [get_bd_pins timer_subsystem/Clk] [get_bd_pins xadc_wiz_0/m_axis_aclk] [get_bd_pins xadc_wiz_0/s_axis_aclk]
+  connect_bd_net -net motor_driver_0_out1 [get_bd_pins motor_driver_0/out1] [get_bd_pins xlconcat_PWM/In1]
+  connect_bd_net -net motor_driver_0_out2 [get_bd_pins motor_driver_0/out2] [get_bd_pins xlconcat_PWM/In2]
+  connect_bd_net -net motor_driver_1_out1 [get_bd_pins motor_driver_1/out1] [get_bd_pins xlconcat_PWM/In3]
+  connect_bd_net -net motor_driver_1_out2 [get_bd_pins motor_driver_1/out2] [get_bd_pins xlconcat_PWM/In4]
   connect_bd_net -net proc_sys_reset_0_interconnect_aresetn [get_bd_pins axi_interconnect_0/ARESETN] [get_bd_pins proc_sys_reset/interconnect_aresetn]
-  connect_bd_net -net proc_sys_reset_0_peripheral_aresetn [get_bd_pins peripheral_aresetn] [get_bd_pins AXI_Encoder/s_axi_aresetn] [get_bd_pins AXI_PWM_Motor/s_axi_aresetn] [get_bd_pins AXI_PWM_Servo/s_axi_aresetn] [get_bd_pins axi_iic_0/s_axi_aresetn] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/M03_ARESETN] [get_bd_pins axi_interconnect_0/M04_ARESETN] [get_bd_pins axi_interconnect_0/M05_ARESETN] [get_bd_pins axi_interconnect_0/M06_ARESETN] [get_bd_pins axi_interconnect_0/M07_ARESETN] [get_bd_pins axi_interconnect_0/M08_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN] [get_bd_pins mb_intc/s_axi_aresetn] [get_bd_pins proc_sys_reset/peripheral_aresetn] [get_bd_pins timer_subsystem/s_axi_aresetn]
+  connect_bd_net -net proc_sys_reset_0_peripheral_aresetn [get_bd_pins AXI_Encoder_0/s_axi_aresetn] [get_bd_pins AXI_Encoder_1/s_axi_aresetn] [get_bd_pins AXI_PWM_Servo/s_axi_aresetn] [get_bd_pins AXI_ultrasonic_ranger_0/s_axi_aresetn] [get_bd_pins arduino_gpio/s_axi_aresetn] [get_bd_pins axi_iic_0/s_axi_aresetn] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/M03_ARESETN] [get_bd_pins axi_interconnect_0/M04_ARESETN] [get_bd_pins axi_interconnect_0/M05_ARESETN] [get_bd_pins axi_interconnect_0/M06_ARESETN] [get_bd_pins axi_interconnect_0/M07_ARESETN] [get_bd_pins axi_interconnect_0/M08_ARESETN] [get_bd_pins axi_interconnect_0/M09_ARESETN] [get_bd_pins axi_interconnect_0/M10_ARESETN] [get_bd_pins axi_interconnect_0/M11_ARESETN] [get_bd_pins axi_interconnect_0/M12_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN] [get_bd_pins io_switch/s_axi_aresetn] [get_bd_pins mb_intc/s_axi_aresetn] [get_bd_pins motor_driver_0/peripheral_aresetn] [get_bd_pins motor_driver_1/peripheral_aresetn] [get_bd_pins proc_sys_reset/peripheral_aresetn] [get_bd_pins timer_subsystem/s_axi_aresetn]
   connect_bd_net -net proc_sys_reset_mb_reset [get_bd_pins mb/Reset] [get_bd_pins proc_sys_reset/mb_reset]
   connect_bd_net -net reset_1 [get_bd_pins intr_ack] [get_bd_pins dff_en_reset_vector_0/reset]
-  connect_bd_net -net s_axi_aresetn_0_1 [get_bd_pins s_axi_bram_aresetn] [get_bd_pins AXI_ultrasonic_ranger_0/s_axi_aresetn] [get_bd_pins axi_interconnect_0/M09_ARESETN] [get_bd_pins intr/s_axi_aresetn] [get_bd_pins mb_bram_ctrl/s_axi_aresetn]
+  connect_bd_net -net s_axi_aresetn_0_1 [get_bd_pins s_axi_bram_aresetn] [get_bd_pins intr/s_axi_aresetn] [get_bd_pins mb_bram_ctrl/s_axi_aresetn] [get_bd_pins xadc_wiz_0/m_axis_resetn]
   connect_bd_net -net timer_subsystem_timer_intr_out [get_bd_pins timer_subsystem/timer_intr_out] [get_bd_pins xlconcat_0/In0]
   connect_bd_net -net xlconcat_0_dout [get_bd_pins mb_intc/intr] [get_bd_pins xlconcat_0/dout]
+  connect_bd_net -net xlconcat_1_dout [get_bd_pins io_switch/pwm_o] [get_bd_pins xlconcat_PWM/dout]
 
   # Restore current instance
   current_bd_instance $oldCurInst
@@ -1079,17 +1463,17 @@ proc create_root_design { parentCell } {
 
   # Create interface ports
   set DDR [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:ddrx_rtl:1.0 DDR ]
+  set Encoder_A0 [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:diff_analog_io_rtl:1.0 Encoder_A0 ]
+  set Encoder_A1 [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:diff_analog_io_rtl:1.0 Encoder_A1 ]
+  set Encoder_B0 [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:diff_analog_io_rtl:1.0 Encoder_B0 ]
+  set Encoder_B1 [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:diff_analog_io_rtl:1.0 Encoder_B1 ]
   set FIXED_IO [ create_bd_intf_port -mode Master -vlnv xilinx.com:display_processing_system7:fixedio_rtl:1.0 FIXED_IO ]
-  set IMU_IIC [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:iic_rtl:1.0 IMU_IIC ]
-  set ultrasonic_sig [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:gpio_rtl:1.0 ultrasonic_sig ]
+  set TMDS_0 [ create_bd_intf_port -mode Master -vlnv digilentinc.com:interface:tmds_rtl:1.0 TMDS_0 ]
+  set arduino_gpio [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:gpio_rtl:1.0 arduino_gpio ]
+  set sig [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:gpio_rtl:1.0 sig ]
   set vid_iic [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:iic_rtl:1.0 vid_iic ]
 
   # Create ports
-  set A [ create_bd_port -dir I A ]
-  set B [ create_bd_port -dir I B ]
-  set Motor_DIR [ create_bd_port -dir O Motor_DIR ]
-  set Motor_PWM [ create_bd_port -dir O Motor_PWM ]
-  set Servo_PWM [ create_bd_port -dir O Servo_PWM ]
   set vid_data [ create_bd_port -dir I -from 7 -to 0 vid_data ]
   set vid_hsync [ create_bd_port -dir I vid_hsync ]
   set vid_pclk [ create_bd_port -dir I -type clk vid_pclk ]
@@ -1110,7 +1494,7 @@ proc create_root_design { parentCell } {
   # Create instance: axi_interconnect_0, and set properties
   set axi_interconnect_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0 ]
   set_property -dict [ list \
-   CONFIG.NUM_MI {4} \
+   CONFIG.NUM_MI {6} \
    CONFIG.NUM_SI {1} \
  ] $axi_interconnect_0
 
@@ -1119,19 +1503,28 @@ proc create_root_design { parentCell } {
   set_property -dict [ list \
    CONFIG.DIN_FROM {3} \
    CONFIG.DIN_TO {3} \
-   CONFIG.DIN_WIDTH {4} \
+   CONFIG.DIN_WIDTH {5} \
    CONFIG.DOUT_WIDTH {1} \
  ] $camera_reset
 
   # Create instance: car_iop_arduino
   create_hier_cell_car_iop_arduino [current_bd_instance .] car_iop_arduino
 
+  # Create instance: color_detect_reset, and set properties
+  set color_detect_reset [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 color_detect_reset ]
+  set_property -dict [ list \
+   CONFIG.DIN_FROM {4} \
+   CONFIG.DIN_TO {4} \
+   CONFIG.DIN_WIDTH {5} \
+   CONFIG.DOUT_WIDTH {1} \
+ ] $color_detect_reset
+
   # Create instance: image_process_reset, and set properties
   set image_process_reset [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 image_process_reset ]
   set_property -dict [ list \
    CONFIG.DIN_FROM {2} \
    CONFIG.DIN_TO {2} \
-   CONFIG.DIN_WIDTH {4} \
+   CONFIG.DIN_WIDTH {5} \
    CONFIG.DOUT_WIDTH {1} \
  ] $image_process_reset
 
@@ -1141,7 +1534,7 @@ proc create_root_design { parentCell } {
   # Create instance: interrupt, and set properties
   set interrupt [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 interrupt ]
   set_property -dict [ list \
-   CONFIG.NUM_PORTS {5} \
+   CONFIG.NUM_PORTS {7} \
  ] $interrupt
 
   # Create instance: mb_car_iop_arduino_intr_ack, and set properties
@@ -1149,7 +1542,7 @@ proc create_root_design { parentCell } {
   set_property -dict [ list \
    CONFIG.DIN_FROM {1} \
    CONFIG.DIN_TO {1} \
-   CONFIG.DIN_WIDTH {4} \
+   CONFIG.DIN_WIDTH {5} \
    CONFIG.DOUT_WIDTH {1} \
  ] $mb_car_iop_arduino_intr_ack
 
@@ -1158,7 +1551,7 @@ proc create_root_design { parentCell } {
   set_property -dict [ list \
    CONFIG.DIN_FROM {0} \
    CONFIG.DIN_TO {0} \
-   CONFIG.DIN_WIDTH {4} \
+   CONFIG.DIN_WIDTH {5} \
  ] $mb_car_iop_arduino_reset
 
   # Create instance: mdm_0, and set properties
@@ -1290,7 +1683,7 @@ proc create_root_design { parentCell } {
    CONFIG.PCW_EN_CAN1 {0} \
    CONFIG.PCW_EN_CLK0_PORT {1} \
    CONFIG.PCW_EN_CLK1_PORT {1} \
-   CONFIG.PCW_EN_CLK2_PORT {0} \
+   CONFIG.PCW_EN_CLK2_PORT {1} \
    CONFIG.PCW_EN_CLK3_PORT {0} \
    CONFIG.PCW_EN_CLKTRIG0_PORT {0} \
    CONFIG.PCW_EN_CLKTRIG1_PORT {0} \
@@ -1357,8 +1750,8 @@ proc create_root_design { parentCell } {
    CONFIG.PCW_FCLK1_PERIPHERAL_DIVISOR0 {42} \
    CONFIG.PCW_FCLK1_PERIPHERAL_DIVISOR1 {1} \
    CONFIG.PCW_FCLK2_PERIPHERAL_CLKSRC {IO PLL} \
-   CONFIG.PCW_FCLK2_PERIPHERAL_DIVISOR0 {1} \
-   CONFIG.PCW_FCLK2_PERIPHERAL_DIVISOR1 {1} \
+   CONFIG.PCW_FCLK2_PERIPHERAL_DIVISOR0 {10} \
+   CONFIG.PCW_FCLK2_PERIPHERAL_DIVISOR1 {10} \
    CONFIG.PCW_FCLK3_PERIPHERAL_CLKSRC {IO PLL} \
    CONFIG.PCW_FCLK3_PERIPHERAL_DIVISOR0 {1} \
    CONFIG.PCW_FCLK3_PERIPHERAL_DIVISOR1 {1} \
@@ -1368,16 +1761,16 @@ proc create_root_design { parentCell } {
    CONFIG.PCW_FCLK_CLK3_BUF {FALSE} \
    CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ {100} \
    CONFIG.PCW_FPGA1_PERIPHERAL_FREQMHZ {24} \
-   CONFIG.PCW_FPGA2_PERIPHERAL_FREQMHZ {200} \
+   CONFIG.PCW_FPGA2_PERIPHERAL_FREQMHZ {10} \
    CONFIG.PCW_FPGA3_PERIPHERAL_FREQMHZ {50} \
    CONFIG.PCW_FPGA_FCLK0_ENABLE {1} \
    CONFIG.PCW_FPGA_FCLK1_ENABLE {1} \
-   CONFIG.PCW_FPGA_FCLK2_ENABLE {0} \
+   CONFIG.PCW_FPGA_FCLK2_ENABLE {1} \
    CONFIG.PCW_FPGA_FCLK3_ENABLE {0} \
    CONFIG.PCW_GPIO_BASEADDR {0xE000A000} \
    CONFIG.PCW_GPIO_EMIO_GPIO_ENABLE {1} \
-   CONFIG.PCW_GPIO_EMIO_GPIO_IO {4} \
-   CONFIG.PCW_GPIO_EMIO_GPIO_WIDTH {4} \
+   CONFIG.PCW_GPIO_EMIO_GPIO_IO {5} \
+   CONFIG.PCW_GPIO_EMIO_GPIO_WIDTH {5} \
    CONFIG.PCW_GPIO_HIGHADDR {0xE000AFFF} \
    CONFIG.PCW_GPIO_MIO_GPIO_ENABLE {1} \
    CONFIG.PCW_GPIO_MIO_GPIO_IO {MIO} \
@@ -1971,7 +2364,7 @@ proc create_root_design { parentCell } {
   # Create instance: smartconnect_0, and set properties
   set smartconnect_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 smartconnect_0 ]
   set_property -dict [ list \
-   CONFIG.NUM_SI {3} \
+   CONFIG.NUM_SI {4} \
  ] $smartconnect_0
 
   # Create instance: util_vector_logic_0, and set properties
@@ -1982,13 +2375,21 @@ proc create_root_design { parentCell } {
    CONFIG.LOGO_FILE {data/sym_notgate.png} \
  ] $util_vector_logic_0
 
+  # Create instance: video_output
+  create_hier_cell_video_output [current_bd_instance .] video_output
+
   # Create interface connections
+  connect_bd_intf_net -intf_net A1 [get_bd_intf_ports Encoder_A1] [get_bd_intf_pins car_iop_arduino/Encoder_A1]
+  connect_bd_intf_net -intf_net Vaux15_0_1 [get_bd_intf_ports Encoder_B1] [get_bd_intf_pins car_iop_arduino/Encoder_B1]
+  connect_bd_intf_net -intf_net Vaux1_0_1 [get_bd_intf_ports Encoder_A0] [get_bd_intf_pins car_iop_arduino/Encoder_A0]
+  connect_bd_intf_net -intf_net Vaux9_0_1 [get_bd_intf_ports Encoder_B0] [get_bd_intf_pins car_iop_arduino/Encoder_B0]
   connect_bd_intf_net -intf_net axi_interconnect_0_M00_AXI [get_bd_intf_pins axi_interconnect_0/M00_AXI] [get_bd_intf_pins car_iop_arduino/S_AXI_BRAM]
   connect_bd_intf_net -intf_net axi_interconnect_0_M01_AXI [get_bd_intf_pins axi_interconnect_0/M01_AXI] [get_bd_intf_pins ov5640_driver_wrapper/S00_AXI]
   connect_bd_intf_net -intf_net axi_interconnect_0_M02_AXI [get_bd_intf_pins axi_intc/s_axi] [get_bd_intf_pins axi_interconnect_0/M02_AXI]
   connect_bd_intf_net -intf_net axi_interconnect_0_M03_AXI [get_bd_intf_pins axi_interconnect_0/M03_AXI] [get_bd_intf_pins image_processing/S00_AXI]
-  connect_bd_intf_net -intf_net car_iop_arduino_IIC_0 [get_bd_intf_ports IMU_IIC] [get_bd_intf_pins car_iop_arduino/IMU_IIC]
-  connect_bd_intf_net -intf_net car_iop_arduino_sig_0 [get_bd_intf_ports ultrasonic_sig] [get_bd_intf_pins car_iop_arduino/sig]
+  connect_bd_intf_net -intf_net axi_interconnect_0_M04_AXI [get_bd_intf_pins axi_interconnect_0/M04_AXI] [get_bd_intf_pins video_output/S_AXI_LITE]
+  connect_bd_intf_net -intf_net car_iop_arduino_io_0 [get_bd_intf_ports arduino_gpio] [get_bd_intf_pins car_iop_arduino/arduino_gpio]
+  connect_bd_intf_net -intf_net car_iop_arduino_sig_0 [get_bd_intf_ports sig] [get_bd_intf_pins car_iop_arduino/sig]
   connect_bd_intf_net -intf_net image_processing_M_AXI_MM2S [get_bd_intf_pins image_processing/M_AXI_MM2S] [get_bd_intf_pins smartconnect_0/S01_AXI]
   connect_bd_intf_net -intf_net image_processing_M_AXI_S2MM [get_bd_intf_pins image_processing/M_AXI_S2MM] [get_bd_intf_pins smartconnect_0/S02_AXI]
   connect_bd_intf_net -intf_net mdm_0_MBDEBUG_0 [get_bd_intf_pins car_iop_arduino/DEBUG] [get_bd_intf_pins mdm_0/MBDEBUG_0]
@@ -1998,17 +2399,13 @@ proc create_root_design { parentCell } {
   connect_bd_intf_net -intf_net processing_system7_0_FIXED_IO [get_bd_intf_ports FIXED_IO] [get_bd_intf_pins processing_system7_0/FIXED_IO]
   connect_bd_intf_net -intf_net processing_system7_0_M_AXI_GP0 [get_bd_intf_pins axi_interconnect_0/S00_AXI] [get_bd_intf_pins processing_system7_0/M_AXI_GP0]
   connect_bd_intf_net -intf_net smartconnect_0_M00_AXI [get_bd_intf_pins processing_system7_0/S_AXI_HP0] [get_bd_intf_pins smartconnect_0/M00_AXI]
+  connect_bd_intf_net -intf_net video_output_M_AXI_MM2S [get_bd_intf_pins smartconnect_0/S03_AXI] [get_bd_intf_pins video_output/M_AXI_MM2S]
+  connect_bd_intf_net -intf_net video_output_TMDS_0 [get_bd_intf_ports TMDS_0] [get_bd_intf_pins video_output/TMDS_0]
 
   # Create port connections
-  connect_bd_net -net A_0_1 [get_bd_ports A] [get_bd_pins car_iop_arduino/A]
-  connect_bd_net -net B_0_1 [get_bd_ports B] [get_bd_pins car_iop_arduino/B]
-  connect_bd_net -net Net [get_bd_pins camera_reset/Din] [get_bd_pins image_process_reset/Din] [get_bd_pins mb_car_iop_arduino_intr_ack/Din] [get_bd_pins mb_car_iop_arduino_reset/Din] [get_bd_pins processing_system7_0/GPIO_O]
+  connect_bd_net -net Net [get_bd_pins camera_reset/Din] [get_bd_pins color_detect_reset/Din] [get_bd_pins image_process_reset/Din] [get_bd_pins mb_car_iop_arduino_intr_ack/Din] [get_bd_pins mb_car_iop_arduino_reset/Din] [get_bd_pins processing_system7_0/GPIO_O]
   connect_bd_net -net axi_intc_0_irq [get_bd_pins axi_intc/irq] [get_bd_pins processing_system7_0/IRQ_F2P]
   connect_bd_net -net camera_reset_Dout [get_bd_pins camera_reset/Dout] [get_bd_pins util_vector_logic_0/Op1]
-  connect_bd_net -net car_iop_arduino_Motor_DIR [get_bd_ports Motor_DIR] [get_bd_pins car_iop_arduino/Motor_DIR]
-  connect_bd_net -net car_iop_arduino_Motor_PWM [get_bd_ports Motor_PWM] [get_bd_pins car_iop_arduino/Motor_PWM]
-  connect_bd_net -net car_iop_arduino_Servo_PWM [get_bd_ports Servo_PWM] [get_bd_pins car_iop_arduino/Servo_PWM]
-  connect_bd_net -net car_iop_arduino_peripheral_aresetn [get_bd_pins car_iop_arduino/peripheral_aresetn] [get_bd_pins ov5640_driver_wrapper/S_AXI_CTRL_ARESETN]
   connect_bd_net -net car_iop_arduino_q [get_bd_pins car_iop_arduino/q] [get_bd_pins interrupt/In4]
   connect_bd_net -net image_process_reset_Dout [get_bd_pins image_process_reset/Dout] [get_bd_pins image_processing/aux_reset_in]
   connect_bd_net -net image_processing_mm2s_introut [get_bd_pins image_processing/mm2s_introut] [get_bd_pins interrupt/In0]
@@ -2017,12 +2414,12 @@ proc create_root_design { parentCell } {
   connect_bd_net -net mb_car_iop_arduino_intr_ack_Dout [get_bd_pins car_iop_arduino/intr_ack] [get_bd_pins mb_car_iop_arduino_intr_ack/Dout]
   connect_bd_net -net mb_car_iop_arduino_rst_Dout [get_bd_pins car_iop_arduino/aux_reset_in] [get_bd_pins mb_car_iop_arduino_reset/Dout]
   connect_bd_net -net mdm_1_debug_sys_rst [get_bd_pins car_iop_arduino/mb_debug_sys_rst] [get_bd_pins mdm_0/Debug_SYS_Rst] [get_bd_pins proc_sys_reset_100m/mb_debug_sys_rst]
-  connect_bd_net -net microblaze_0_Clk [get_bd_pins axi_intc/s_axi_aclk] [get_bd_pins axi_interconnect_0/ACLK] [get_bd_pins axi_interconnect_0/M00_ACLK] [get_bd_pins axi_interconnect_0/M01_ACLK] [get_bd_pins axi_interconnect_0/M02_ACLK] [get_bd_pins axi_interconnect_0/M03_ACLK] [get_bd_pins axi_interconnect_0/S00_ACLK] [get_bd_pins car_iop_arduino/Clk] [get_bd_pins image_processing/ap_clk] [get_bd_pins ov5640_driver_wrapper/ACLK] [get_bd_pins proc_sys_reset_100m/slowest_sync_clk] [get_bd_pins processing_system7_0/FCLK_CLK0] [get_bd_pins processing_system7_0/M_AXI_GP0_ACLK] [get_bd_pins processing_system7_0/S_AXI_HP0_ACLK] [get_bd_pins smartconnect_0/aclk]
+  connect_bd_net -net microblaze_0_Clk [get_bd_pins axi_intc/s_axi_aclk] [get_bd_pins axi_interconnect_0/ACLK] [get_bd_pins axi_interconnect_0/M00_ACLK] [get_bd_pins axi_interconnect_0/M01_ACLK] [get_bd_pins axi_interconnect_0/M02_ACLK] [get_bd_pins axi_interconnect_0/M03_ACLK] [get_bd_pins axi_interconnect_0/M04_ACLK] [get_bd_pins axi_interconnect_0/M05_ACLK] [get_bd_pins axi_interconnect_0/S00_ACLK] [get_bd_pins car_iop_arduino/Clk] [get_bd_pins image_processing/ap_clk] [get_bd_pins ov5640_driver_wrapper/ACLK] [get_bd_pins proc_sys_reset_100m/slowest_sync_clk] [get_bd_pins processing_system7_0/FCLK_CLK0] [get_bd_pins processing_system7_0/M_AXI_GP0_ACLK] [get_bd_pins processing_system7_0/S_AXI_HP0_ACLK] [get_bd_pins smartconnect_0/aclk] [get_bd_pins video_output/clk_100m]
   connect_bd_net -net ov5640_driver_wrapper_iic2intc_irpt [get_bd_pins interrupt/In2] [get_bd_pins ov5640_driver_wrapper/iic2intc_irpt]
   connect_bd_net -net ov5640_driver_wrapper_s2mm_introut [get_bd_pins interrupt/In3] [get_bd_pins ov5640_driver_wrapper/s2mm_introut]
   connect_bd_net -net proc_sys_reset_100m_bus_struct_reset [get_bd_pins car_iop_arduino/SYS_Rst] [get_bd_pins proc_sys_reset_100m/bus_struct_reset]
   connect_bd_net -net proc_sys_reset_100m_interconnect_aresetn [get_bd_pins axi_interconnect_0/ARESETN] [get_bd_pins proc_sys_reset_100m/interconnect_aresetn] [get_bd_pins smartconnect_0/aresetn]
-  connect_bd_net -net proc_sys_reset_100m_peripheral_aresetn [get_bd_pins axi_intc/s_axi_aresetn] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/M03_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN] [get_bd_pins car_iop_arduino/s_axi_bram_aresetn] [get_bd_pins ov5640_driver_wrapper/ARESETN] [get_bd_pins proc_sys_reset_100m/peripheral_aresetn]
+  connect_bd_net -net proc_sys_reset_100m_peripheral_aresetn [get_bd_pins axi_intc/s_axi_aresetn] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/M03_ARESETN] [get_bd_pins axi_interconnect_0/M04_ARESETN] [get_bd_pins axi_interconnect_0/M05_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN] [get_bd_pins car_iop_arduino/s_axi_bram_aresetn] [get_bd_pins image_processing/M04_ARESETN] [get_bd_pins ov5640_driver_wrapper/ARESETN] [get_bd_pins proc_sys_reset_100m/peripheral_aresetn] [get_bd_pins video_output/axi_resetn]
   connect_bd_net -net processing_system7_0_FCLK_CLK1 [get_bd_ports vid_xclk] [get_bd_pins processing_system7_0/FCLK_CLK1]
   connect_bd_net -net processing_system7_0_FCLK_RESET0_N [get_bd_pins proc_sys_reset_100m/ext_reset_in] [get_bd_pins processing_system7_0/FCLK_RESET0_N]
   connect_bd_net -net util_vector_logic_0_Res [get_bd_ports vid_rst] [get_bd_pins util_vector_logic_0/Res]
@@ -2030,6 +2427,7 @@ proc create_root_design { parentCell } {
   connect_bd_net -net vid_hsync_1 [get_bd_ports vid_hsync] [get_bd_pins ov5640_driver_wrapper/vid_hsync]
   connect_bd_net -net vid_pclk_1 [get_bd_ports vid_pclk] [get_bd_pins ov5640_driver_wrapper/vid_pclk]
   connect_bd_net -net vid_vsync_1 [get_bd_ports vid_vsync] [get_bd_pins ov5640_driver_wrapper/vid_vsync]
+  connect_bd_net -net video_output_mm2s_introut [get_bd_pins interrupt/In5] [get_bd_pins video_output/mm2s_introut]
   connect_bd_net -net xlconcat_0_dout [get_bd_pins axi_intc/intr] [get_bd_pins interrupt/dout]
 
   # Create address segments
@@ -2038,31 +2436,41 @@ proc create_root_design { parentCell } {
   create_bd_addr_seg -range 0x00010000 -offset 0x40400000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs image_processing/axi_dma_proc/S_AXI_LITE/Reg] SEG_axi_dma_proc_Reg
   create_bd_addr_seg -range 0x00010000 -offset 0x41800000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_intc/S_AXI/Reg] SEG_axi_intc_0_Reg
   create_bd_addr_seg -range 0x00010000 -offset 0x41600000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs ov5640_driver_wrapper/axi_sccb/S_AXI/Reg] SEG_axi_sccb_Reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x43000000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs video_output/axi_vdma/S_AXI_LITE/Reg] SEG_axi_vdma_Reg
   create_bd_addr_seg -range 0x00010000 -offset 0x43010000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs ov5640_driver_wrapper/axi_vdma_cam/S_AXI_LITE/Reg] SEG_axi_vdma_ov5640_in_Reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x43C40000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs image_processing/color_detect/s_axi_AXILiteS/Reg] SEG_color_detect_Reg
   create_bd_addr_seg -range 0x00010000 -offset 0x43C00000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs ov5640_driver_wrapper/a0_demosaic/s_axi_CTRL/Reg] SEG_demosaic_Reg
   create_bd_addr_seg -range 0x00010000 -offset 0x43C10000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs image_processing/axis_interconnect_front/xbar/S_AXI_CTRL/Reg] SEG_xbar_Reg
   create_bd_addr_seg -range 0x00010000 -offset 0x43C50000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs ov5640_driver_wrapper/axis_interconnect_back/xbar/S_AXI_CTRL/Reg] SEG_xbar_Reg1
   create_bd_addr_seg -range 0x00010000 -offset 0x43C20000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs image_processing/axis_interconnect_back/xbar/S_AXI_CTRL/Reg] SEG_xbar_Reg3
   create_bd_addr_seg -range 0x00010000 -offset 0x43C60000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs ov5640_driver_wrapper/axis_interconnect_front/xbar/S_AXI_CTRL/Reg] SEG_xbar_Reg4
-  create_bd_addr_seg -range 0x00010000 -offset 0x44A10000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/AXI_Encoder/S_AXI/S_AXI_reg] SEG_AXI_Encoder_S_AXI_reg
-  create_bd_addr_seg -range 0x00010000 -offset 0x44A00000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/AXI_PWM_Motor/S_AXI/S_AXI_reg] SEG_AXI_PWM_Motor_S_AXI_reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x44A40000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/AXI_Encoder_1/S_AXI/S_AXI_reg] SEG_AXI_Encoder_1_S_AXI_reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x44A10000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/AXI_Encoder_0/S_AXI/S_AXI_reg] SEG_AXI_Encoder_S_AXI_reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x44A00000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/motor_driver_0/AXI_PWM_Motor/S_AXI/S_AXI_reg] SEG_AXI_PWM_Motor_S_AXI_reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x44A70000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/motor_driver_1/AXI_PWM_Motor/S_AXI/S_AXI_reg] SEG_AXI_PWM_Motor_S_AXI_reg5
   create_bd_addr_seg -range 0x00010000 -offset 0x44A20000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/AXI_PWM_Servo/S_AXI/S_AXI_reg] SEG_AXI_PWM_Servo_S_AXI_reg
   create_bd_addr_seg -range 0x00010000 -offset 0x44A30000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/AXI_ultrasonic_ranger_0/S_AXI/S_AXI_reg] SEG_AXI_ultrasonic_ranger_0_S_AXI_reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x40010000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/arduino_gpio/S_AXI/Reg] SEG_arduino_gpio_Reg
   create_bd_addr_seg -range 0x00010000 -offset 0x40800000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/axi_iic_0/S_AXI/Reg] SEG_axi_iic_0_Reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x44A60000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/motor_driver_0/axi_motor_ctrl_sel_0/S_AXI/S_AXI_reg] SEG_axi_motor_ctrl_sel_0_S_AXI_reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x44A80000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/motor_driver_1/axi_motor_ctrl_sel_0/S_AXI/S_AXI_reg] SEG_axi_motor_ctrl_sel_0_S_AXI_reg7
   create_bd_addr_seg -range 0x00010000 -offset 0x00000000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/microblaze_0_local_memory/dlmb_bram_if_cntlr/SLMB/Mem] SEG_dlmb_bram_if_cntlr_Mem
   create_bd_addr_seg -range 0x00010000 -offset 0x00000000 [get_bd_addr_spaces car_iop_arduino/mb/Instruction] [get_bd_addr_segs car_iop_arduino/microblaze_0_local_memory/dlmb_bram_if_cntlr/SLMB1/Mem] SEG_dlmb_bram_if_cntlr_Mem
   create_bd_addr_seg -range 0x00010000 -offset 0x40000000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/intr/S_AXI/Reg] SEG_intr_Reg
+  create_bd_addr_seg -range 0x00010000 -offset 0x44A50000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/io_switch/S_AXI/S_AXI_reg] SEG_io_switch_S_AXI_reg
   create_bd_addr_seg -range 0x00010000 -offset 0x41200000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/mb_intc/S_AXI/Reg] SEG_mb_intc_Reg
   create_bd_addr_seg -range 0x00010000 -offset 0x41C00000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/timer_subsystem/timer_0/S_AXI/Reg] SEG_timer_0_Reg
   create_bd_addr_seg -range 0x00010000 -offset 0x41C10000 [get_bd_addr_spaces car_iop_arduino/mb/Data] [get_bd_addr_segs car_iop_arduino/timer_subsystem/timer_1/S_AXI/Reg] SEG_timer_1_Reg
   create_bd_addr_seg -range 0x20000000 -offset 0x00000000 [get_bd_addr_spaces image_processing/axi_dma_proc/Data_MM2S] [get_bd_addr_segs processing_system7_0/S_AXI_HP0/HP0_DDR_LOWOCM] SEG_processing_system7_0_HP0_DDR_LOWOCM
   create_bd_addr_seg -range 0x20000000 -offset 0x00000000 [get_bd_addr_spaces image_processing/axi_dma_proc/Data_S2MM] [get_bd_addr_segs processing_system7_0/S_AXI_HP0/HP0_DDR_LOWOCM] SEG_processing_system7_0_HP0_DDR_LOWOCM
   create_bd_addr_seg -range 0x20000000 -offset 0x00000000 [get_bd_addr_spaces ov5640_driver_wrapper/axi_vdma_cam/Data_S2MM] [get_bd_addr_segs processing_system7_0/S_AXI_HP0/HP0_DDR_LOWOCM] SEG_processing_system7_0_HP0_DDR_LOWOCM
+  create_bd_addr_seg -range 0x20000000 -offset 0x00000000 [get_bd_addr_spaces video_output/axi_vdma/Data_MM2S] [get_bd_addr_segs processing_system7_0/S_AXI_HP0/HP0_DDR_LOWOCM] SEG_processing_system7_0_HP0_DDR_LOWOCM
 
 
   # Restore current instance
   current_bd_instance $oldCurInst
 
+  validate_bd_design
   save_bd_design
 }
 # End of create_root_design()
@@ -2074,6 +2482,4 @@ proc create_root_design { parentCell } {
 
 create_root_design ""
 
-
-common::send_msg_id "BD_TCL-1000" "WARNING" "This Tcl script was generated from a block design that has not been validated. It is possible that design <$design_name> may result in errors during validation."
 
