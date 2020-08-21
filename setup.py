@@ -39,13 +39,13 @@ def copy_infra():
     src_lib_dir = os.path.join('infrastructure/', 'mmio.py')
     dst_lib_dir = os.path.join(f'/usr/local/lib/python3.6/dist-packages/pynq/', 'mmio.py')
     if os.path.exists(dst_lib_dir):
-        shutil.rmtree(dst_lib_dir)
-    copy_tree(src_lib_dir, dst_lib_dir)
+        os.remove(dst_lib_dir)
+    shutil.copyfile(src_lib_dir, dst_lib_dir)
     src_lib_dir = os.path.join('infrastructure/', 'device.py')
     dst_lib_dir = os.path.join(f'/usr/local/lib/python3.6/dist-packages/pynq/pl_server/', 'device.py')
     if os.path.exists(dst_lib_dir):
-        shutil.rmtree(dst_lib_dir)
-    copy_tree(src_lib_dir, dst_lib_dir)
+        os.remove(dst_lib_dir)
+    shutil.copyfile(src_lib_dir, dst_lib_dir)
 
 copy_lib()
 copy_notebooks()
