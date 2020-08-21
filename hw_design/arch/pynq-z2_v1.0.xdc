@@ -109,8 +109,8 @@ set_property -dict {PACKAGE_PIN N17 IOSTANDARD LVCMOS33} [get_ports {arduino_gpi
 
 ## Arduino I2C
 
-set_property -dict {PACKAGE_PIN P15 IOSTANDARD LVCMOS33} [get_ports {arduino_gpio_tri_io[13]}]
-set_property -dict {PACKAGE_PIN P16 IOSTANDARD LVCMOS33} [get_ports {arduino_gpio_tri_io[14]}]
+set_property -dict {PACKAGE_PIN P15 IOSTANDARD LVCMOS33} [get_ports {MB_IIC_scl_io}]
+set_property -dict {PACKAGE_PIN P16 IOSTANDARD LVCMOS33} [get_ports {MB_IIC_sda_io}]
 
 ##Arduino Digital I/O On Outer Analog Header
 ##NOTE: These pins should be used when using the analog header signals A0-A5 as digital I/O
