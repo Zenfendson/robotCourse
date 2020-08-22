@@ -17,7 +17,7 @@ SET_SERVO_PIN 		  =25
 GET_ULRANGER_DATA 	=27
 SET_MOTOR_MODE      =29
 
-Arduino_pins_dict = {'D1': 0, 'D2': 1,'D3':2,'D4': 3, 'D5': 4,'D6':5,'D7': 6, 'D8': 7,'D9':8,'D10': 9, 'D11': 10,'D12':11,'D13': 12,'SDA': 13, 'SCL': 14}
+Arduino_pins_dict = {'D1': 0, 'D2': 1,'D3':2,'D4': 3, 'D5': 4,'D6':5,'D7': 6, 'D8': 7,'D9':8,'D10': 9, 'D11': 10,'D12':11,'D13': 12}
 
 Arduino_programs_dict = {'monomotor':"/usr/local/lib/python3.6/dist-packages/PYNQ_Car/Overlay/car_arduino_monomotor.bin",'bimotor':"/usr/local/lib/python3.6/dist-packages/PYNQ_Car/Overlay/car_arduino_bimotor.bin"}
 
@@ -94,19 +94,21 @@ class Car_Arduino(object):
         
         """
         self.microblaze.write_blocking_command(RESET)
-
     def load(self,program_name):
         if program_name not in Arduino_programs_dict.keys():
             raise RuntimeError("Unsupported car type!")
         self.microblaze = Arduino(self.mb_info, Arduino_programs_dict[program_name])
         self.isLoaded = True
-        
     def init(self):
-        if self.isLoaded is not True:
-            raise RuntimeError("Arduino program is not loaded!")
-        
+
+        self.load('bimotor')
+        self.set_motor_pins('D11','D5','D6','D3')
+        self.set_motor_mode('full_bridge')
+        self.set_servo_pin('D9')
         self.microblaze.write_blocking_command(INIT)
-    
+        self.set_motor_dir(1,0)
+        self.set_encoder_dir(1,0)
+        
     def set_iic_pins(self,sda_pin,scl_pin):
         if sda_pin not in Arduino_pins_dict.keys() or scl_pin not in Arduino_pins_dict.keys():
             raise RuntimeError("Unsupported pins!")
@@ -206,7 +208,7 @@ class Car_Arduino(object):
         self.microblaze.write_blocking_command(SET_MOTOR_DIR)
         return
         
-    def set_servo_angle(self,data):
+    def set_direction(self,data):
         k = np.zeros((1,1),dtype = np.float32)
         k[0,0] = np.float32(data)
         k.dtype = np.int32
@@ -222,7 +224,7 @@ class Car_Arduino(object):
         return
         
         
-    def get_ultra_cm(self):
+    def get_range_cm(self):
         self.microblaze.write_blocking_command(GET_ULRANGER_DATA)
         reg = self.microblaze.read_mailbox(0, 1)
         num_microseconds = _reg2int(reg)
