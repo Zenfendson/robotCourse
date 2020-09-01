@@ -58,7 +58,6 @@
 #include "timer.h"
 #include "i2c.h"
 #include <xparameters.h>
-#include "AXI_Encoder.h"
 #include "xil_io.h"
 #include "motor.h"
 #include "servo.h"
